@@ -3,13 +3,18 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	milvusClient "github.com/milvus-io/milvus-sdk-go/v2/client"
 )
 
 type Request struct {
@@ -32,6 +37,7 @@ type StreamResponse struct {
 
 const (
 	OllamaHost = "http://localhost:11434"
+	MilvusHost = "localhost:19530"
 )
 
 func talkToOllama(endpoint string, ollamaReq *Request, callback func(content string) error) error {
@@ -84,41 +90,57 @@ func talkToOllama(endpoint string, ollamaReq *Request, callback func(content str
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run main.go <document_dir> <model_name> <ollama_host>")
+		fmt.Println("Usage: go run main.go <milvus_collection> <model_name> <ollama_host> <milvus_host>")
 		fmt.Println("Default ollama host: http://localhost:11434")
 		os.Exit(0)
 	}
 
-	docDir := os.Args[1]
+	milvusCollection := os.Args[1]
 	modelName := os.Args[2]
+
 	ollamaHost := OllamaHost
 	if len(os.Args) > 3 {
 		ollamaHost = os.Args[3]
 	}
 	ollamaChatEndpoint := ollamaHost + "/api/chat"
 
-	filesContent, err := readFiles(docDir)
+	milvusHost := MilvusHost
+	if len(os.Args) > 4 {
+		milvusHost = os.Args[4]
+	}
+
+	//Connect milvus
+	milvusCli, err := milvusClient.NewClient(context.Background(), milvusClient.Config{
+		Address: milvusHost,
+	})
 	if err != nil {
-		fmt.Printf("Error reading files: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Failed to connect to Milvus: %v", err)
 	}
+	searchVector(milvusCli, milvusCollection)
 
-	var context []string
-	for _, paragraphs := range filesContent {
-		for _, paragraph := range paragraphs {
-			if paragraph != "" {
-				context = append(context, paragraph)
-			}
-		}
-	}
-	allContext := strings.Join(context, "\n")
-
-	var history = []Message{
-		{
-			Role:    "system",
-			Content: "Context：\n" + allContext,
-		},
-	}
+	//filesContent, err := readFiles(docDir)
+	//if err != nil {
+	//	fmt.Printf("Error reading files: %v\n", err)
+	//	os.Exit(1)
+	//}
+	//
+	//var context []string
+	//for _, paragraphs := range filesContent {
+	//	for _, paragraph := range paragraphs {
+	//		if paragraph != "" {
+	//			context = append(context, paragraph)
+	//		}
+	//	}
+	//}
+	//allContext := strings.Join(context, "\n")
+	//
+	//var history = []Message{
+	//	{
+	//		Role:    "system",
+	//		Content: "Context：\n" + allContext,
+	//	},
+	//}
+	var history []Message
 
 	fmt.Println("AI Agent stared")
 	fmt.Println("Please input 'exit' to stop the agent.")
@@ -178,6 +200,33 @@ func main() {
 		})
 
 		fmt.Println("")
+	}
+}
+
+func searchVector(milvusCli milvusClient.Client, collectionName string) error {
+	var contents []string
+
+	sp, err := entity.NewIndexFlatSearchParam()
+	if err != nil {
+		return err
+	}
+	resList, err := milvusCli.Search(
+		context.Background(),
+		collectionName,
+		[]string{},
+		"",
+		[]string{"content"},
+		[]entity.Vector{entity.FloatVector([]float32{0.1, 0.2})},
+		"content_embedding",
+		entity.L2,
+		3,
+		sp,
+	)
+	if err != nil {
+		return err
+	}
+	for _, res := range resList {
+		contents = append(contents, res.Fields.GetColumn("content").GetAsString())
 	}
 }
 
