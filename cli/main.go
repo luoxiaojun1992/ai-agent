@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -16,6 +17,19 @@ import (
 	milvusClient "github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 )
+
+type EmbedRequest struct {
+	Model string `json:"model"`
+	Input string `json:"input"`
+}
+
+type EmbedResponse struct {
+	Model           string      `json:"model"`
+	Embeddings      [][]float32 `json:"embeddings"`
+	TotalDuration   int64       `json:"total_duration"`
+	LoadDuration    int64       `json:"load_duration"`
+	PromptEvalCount int64       `json:"prompt_eval_count"`
+}
 
 type ChatRequest struct {
 	Model    string     `json:"model"`
@@ -42,23 +56,25 @@ const (
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run main.go <milvus_collection> <model_name> <ollama_host> <milvus_host>")
+		fmt.Println("Usage: go run main.go <milvus_collection> <embed_model_name> <chat_model_name> [<ollama_host> <milvus_host>]")
 		fmt.Println("Default ollama host: http://localhost:11434")
 		os.Exit(0)
 	}
 
 	milvusCollection := os.Args[1]
-	modelName := os.Args[2]
+	chatModelName := os.Args[2]
+	embedModelName := os.Args[3]
 
 	ollamaHost := OllamaHost
-	if len(os.Args) > 3 {
-		ollamaHost = os.Args[3]
+	if len(os.Args) > 4 {
+		ollamaHost = os.Args[4]
 	}
 	ollamaChatEndpoint := ollamaHost + "/api/chat"
+	ollamaEmbedEndpoint := ollamaHost + "/api/embed"
 
 	milvusHost := MilvusHost
-	if len(os.Args) > 4 {
-		milvusHost = os.Args[4]
+	if len(os.Args) > 5 {
+		milvusHost = os.Args[5]
 	}
 
 	//Connect milvus
@@ -100,16 +116,26 @@ func main() {
 		}
 
 		// Search contexts
-		contextStr, err := searchContext(milvusCli, milvusCollection, nil) //todo
+		embedVector, err := embeddingPrompt(ollamaEmbedEndpoint, &EmbedRequest{
+			Model: embedModelName,
+			Input: prompt,
+		})
 		if err != nil {
-			fmt.Println("Error fetching contexts:", err)
+			fmt.Println("Error embedding prompt:", err)
 			continue
 		}
-		if len(contextStr) > 0 {
-			history = append(history, &Message{
-				Role:    "system",
-				Content: "Context: \n" + contextStr,
-			})
+		if len(embedVector.Embeddings) > 0 && len(embedVector.Embeddings[0]) > 0 {
+			contextStr, err := searchContext(milvusCli, milvusCollection, embedVector.Embeddings[0])
+			if err != nil {
+				fmt.Println("Error fetching contexts:", err)
+				continue
+			}
+			if len(contextStr) > 0 {
+				history = append(history, &Message{
+					Role:    "system",
+					Content: "Context: \n" + contextStr,
+				})
+			}
 		}
 
 		fmt.Println("Generating...")
@@ -123,7 +149,7 @@ func main() {
 		var responseContent strings.Builder
 
 		if err := talkToOllama(ollamaChatEndpoint, &ChatRequest{
-			Model:    modelName,
+			Model:    chatModelName,
 			Messages: history,
 		}, func(content string) error {
 			if _, err := responseContent.WriteString(content); err != nil {
@@ -145,9 +171,38 @@ func main() {
 	}
 }
 
-func embeddingPrompt(endpoint string, ollamaReq *ChatRequest, callback func(vector []float32) error) error {
-	//todo
-	return nil
+func embeddingPrompt(endpoint string, ollamaReq *EmbedRequest) (*EmbedResponse, error) {
+	jsonReq, _ := json.Marshal(ollamaReq)
+
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonReq))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		resp.Body.Close()
+	}()
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("error embedding prompt, status code %d", resp.StatusCode))
+	}
+
+	embedResponseBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	embedResponse := &EmbedResponse{}
+	if err := json.Unmarshal(embedResponseBytes, embedResponse); err != nil {
+		return nil, err
+	}
+
+	return embedResponse, nil
 }
 
 func talkToOllama(endpoint string, ollamaReq *ChatRequest, callback func(content string) error) error {
@@ -155,7 +210,7 @@ func talkToOllama(endpoint string, ollamaReq *ChatRequest, callback func(content
 
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonReq))
 	if err != nil {
-		return nil
+		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
@@ -167,6 +222,9 @@ func talkToOllama(endpoint string, ollamaReq *ChatRequest, callback func(content
 	defer func() {
 		resp.Body.Close()
 	}()
+	if resp.StatusCode != http.StatusOK {
+		return errors.New(fmt.Sprintf("error talking to ollama, status code %d", resp.StatusCode))
+	}
 
 	scanner := bufio.NewScanner(resp.Body)
 
@@ -249,7 +307,7 @@ func searchContext(milvusCli milvusClient.Client, collectionName string, vector 
 func readFiles(dir string) (map[string][]string, error) {
 	var filesContent = make(map[string][]string)
 
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -261,9 +319,7 @@ func readFiles(dir string) (map[string][]string, error) {
 			filesContent[path] = strings.Split(string(content), "\n")
 		}
 		return nil
-	})
-
-	if err != nil {
+	}); err != nil {
 		return nil, err
 	}
 
