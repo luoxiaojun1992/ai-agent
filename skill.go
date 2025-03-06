@@ -1,5 +1,5 @@
 package ai_agent
 
 type skill interface {
-	do(callback func(output interface{}) error) error
+	do(callback func(ctx interface{}) error) error
 }
