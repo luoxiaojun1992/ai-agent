@@ -44,13 +44,13 @@ func main() {
 		MilvusCollection: milvusCollection,
 	})
 	if err != nil {
-		log.Fatalf("Failed to create ai agent: %v", err)
+		log.Fatalf("Failed to create AI agent: %v", err)
 	}
 	agentDouble.Agent.SetCharacter("Kind")
 	agentDouble.Agent.SetRole("General AI")
 	agentDouble.InitMemory()
 
-	fmt.Println("AI Agent stared")
+	fmt.Println("AI agent stared")
 	fmt.Println("Please input 'exit' to stop the agent.")
 	fmt.Println("Please input 'clear' to delete all contexts.")
 
