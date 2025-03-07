@@ -3,6 +3,7 @@ package ai_agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
@@ -17,20 +18,20 @@ type Config struct {
 	MilvusCollection string
 }
 
-type PersonalInfo struct {
+type personalInfo struct {
 	character string
 	role      string
 }
 
-func (pi *PersonalInfo) characterPrompt() string {
+func (pi *personalInfo) characterPrompt() string {
 	return "Personality: \n" + "You are " + pi.character
 }
 
-func (pi *PersonalInfo) rolePrompt() string {
+func (pi *personalInfo) rolePrompt() string {
 	return "Role: \n" + "You are " + pi.role
 }
 
-func (pi *PersonalInfo) prompt() string {
+func (pi *personalInfo) prompt() string {
 	return pi.characterPrompt() + "\n" + pi.rolePrompt()
 }
 
@@ -38,7 +39,7 @@ type Agent struct {
 	//todo search engine client
 	config *Config
 
-	personalInfo *PersonalInfo
+	personalInfo *personalInfo
 	skillSet     map[string]skill
 
 	ollamaCli ollama.IClient
@@ -55,13 +56,12 @@ func NewAgent(ctx context.Context, config *Config) (*Agent, error) {
 
 	return &Agent{
 		config:       config,
-		personalInfo: &PersonalInfo{},
+		personalInfo: &personalInfo{},
 		skillSet:     make(map[string]skill),
 		ollamaCli: ollama.NewClient(&ollama.Config{
 			Host: config.OllamaHost,
 		}),
 		milvusCli: milvusCli,
-		//todo init ollama and milvus clis
 	}, nil
 }
 
@@ -80,27 +80,40 @@ func (sa *Agent) LearnSkill(name string, processor skill) *Agent {
 	return sa
 }
 
-func (sa *Agent) Command(skillName string, callback func(output interface{}) error) error {
+func (sa *Agent) Command(skillName string, cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
 	processor, existed := sa.skillSet[skillName]
 	if !existed {
 		return errors.New("skill hasn't been learned")
 	}
-	return processor.do(callback)
+	return processor.do(cmdCtx, callback)
 }
 
-type Memory struct {
-	contexts []*ollama.Message
+type memoryCtx struct {
+	role    string
+	content string
+	epoch   int
 }
 
-func NewMemory() *Memory {
-	return &Memory{}
+func (mc *memoryCtx) toOllamaMessage() *ollama.Message {
+	return &ollama.Message{
+		Role:    mc.role,
+		Content: fmt.Sprintf("[Message has been recalled %d times] ", mc.epoch) + mc.content,
+	}
+}
+
+type memory struct {
+	contexts []*memoryCtx
+}
+
+func NewMemory() *memory {
+	return &memory{}
 }
 
 type AgentDouble struct {
 	config *Config
 
 	Agent  *Agent
-	memory *Memory
+	memory *memory
 }
 
 func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
@@ -116,20 +129,29 @@ func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
 	}, nil
 }
 
-func (ad *AgentDouble) InitMemory() *AgentDouble {
-	personalInfoPrompt := ad.Agent.personalInfo.prompt()
-	ad.memory.contexts = append(ad.memory.contexts, &ollama.Message{
-		Role:    "system",
-		Content: personalInfoPrompt,
+func (ad *AgentDouble) AddMemory(role, content string) error {
+	ad.memory.contexts = append(ad.memory.contexts, &memoryCtx{
+		role:    role,
+		content: content,
 	})
-	return ad
+	return nil
 }
 
+func (ad *AgentDouble) InitMemory() *AgentDouble {
+	personalInfoPrompt := ad.Agent.personalInfo.prompt()
+	ad.AddMemory("system", personalInfoPrompt)
+	return ad
+}
 func (ad *AgentDouble) talkToOllama(callback func(response string) error) error {
 	var responseContent strings.Builder
+	ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.contexts))
+	for _, memCtx := range ad.memory.contexts {
+		memCtx.epoch++
+		ollamaMessages = append(ollamaMessages, memCtx.toOllamaMessage())
+	}
 	if err := ad.Agent.ollamaCli.Talk(&ollama.ChatRequest{
 		Model:    ad.config.ChatModel,
-		Messages: ad.memory.contexts,
+		Messages: ollamaMessages,
 	}, func(response string) error {
 		if _, err := responseContent.WriteString(response); err != nil {
 			return err
@@ -142,10 +164,7 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 		return err
 	}
 
-	ad.memory.contexts = append(ad.memory.contexts, &ollama.Message{
-		Role:    "assistant",
-		Content: responseContent.String(),
-	})
+	ad.AddMemory("assistant", responseContent.String())
 
 	return nil
 }
@@ -165,40 +184,48 @@ func (ad *AgentDouble) Listen(message string, callback func(response string) err
 			return err
 		}
 		if len(ctxVectors) > 0 {
-			ad.memory.contexts = append(ad.memory.contexts, &ollama.Message{
-				Role:    "system",
-				Content: "Context: \n" + strings.Join(ctxVectors, "\n"),
-			})
+			ad.AddMemory("system", "Context: \n"+strings.Join(ctxVectors, "\n"))
 		}
 	}
 
 	//Generate response
-	ad.memory.contexts = append(ad.memory.contexts, &ollama.Message{
-		Role:    "user",
-		Content: message,
-	})
+	ad.AddMemory("user", message)
 	return ad.talkToOllama(callback)
 }
 
 func (ad *AgentDouble) Think(callback func(output interface{}) error) error {
-	ad.memory.contexts = append(ad.memory.contexts, &ollama.Message{
-		Role:    "assistant",
-		Content: "Let me think and output something",
-	})
+	ad.AddMemory("assistant", "Let me think and output something")
 	return ad.talkToOllama(func(response string) error {
 		return callback(response)
 	})
 }
 
 func (ad *AgentDouble) Learn(info string) error {
-	ad.memory.contexts = append(ad.memory.contexts, &ollama.Message{
-		Role:    "system",
-		Content: info,
-	})
+	ad.AddMemory("system", info)
 	return nil
 }
 
 func (ad *AgentDouble) Read(url string) error {
 	//todo
+	return nil
+}
+
+func (ad *AgentDouble) Forget(number int) error {
+	memoryLen := len(ad.memory.contexts)
+	if number < 0 {
+		number = memoryLen
+	}
+	if number > memoryLen {
+		number = memoryLen
+	}
+
+	leftMemoryLen := memoryLen - number
+
+	if leftMemoryLen <= 0 {
+		ad.memory.contexts = nil
+		return nil
+	}
+
+	ad.memory.contexts = ad.memory.contexts[:leftMemoryLen]
 	return nil
 }
