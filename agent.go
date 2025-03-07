@@ -129,18 +129,17 @@ func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
 	}, nil
 }
 
-func (ad *AgentDouble) AddMemory(role, content string) error {
+func (ad *AgentDouble) AddMemory(role, content string) *AgentDouble {
 	ad.memory.contexts = append(ad.memory.contexts, &memoryCtx{
 		role:    role,
 		content: content,
 	})
-	return nil
+	return ad
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
-	ad.AddMemory("system", personalInfoPrompt)
-	return ad
+	return ad.AddMemory("system", personalInfoPrompt)
 }
 
 func (ad *AgentDouble) talkToOllama(callback func(response string) error) error {
@@ -201,9 +200,8 @@ func (ad *AgentDouble) Think(callback func(output interface{}) error) error {
 	})
 }
 
-func (ad *AgentDouble) Learn(info string) error {
-	ad.AddMemory("system", info)
-	return nil
+func (ad *AgentDouble) Learn(info string) *AgentDouble {
+	return ad.AddMemory("system", info)
 }
 
 func (ad *AgentDouble) Read(url string) error {
@@ -211,7 +209,7 @@ func (ad *AgentDouble) Read(url string) error {
 	return nil
 }
 
-func (ad *AgentDouble) Forget(number int) error {
+func (ad *AgentDouble) Forget(number int) *AgentDouble {
 	memoryLen := len(ad.memory.contexts)
 	if number < 0 {
 		number = memoryLen
@@ -228,5 +226,9 @@ func (ad *AgentDouble) Forget(number int) error {
 	}
 
 	ad.memory.contexts = ad.memory.contexts[:leftMemoryLen]
-	return nil
+	return ad
+}
+
+func (ad *AgentDouble) ResetMemory() *AgentDouble {
+	return ad.Forget(-1).InitMemory()
 }

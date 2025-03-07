@@ -74,7 +74,7 @@ func main() {
 		}
 
 		if prompt == "clear" {
-			//todo
+			agentDouble.ResetMemory()
 			continue
 		}
 
