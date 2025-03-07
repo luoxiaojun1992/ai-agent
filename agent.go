@@ -142,6 +142,7 @@ func (ad *AgentDouble) InitMemory() *AgentDouble {
 	ad.AddMemory("system", personalInfoPrompt)
 	return ad
 }
+
 func (ad *AgentDouble) talkToOllama(callback func(response string) error) error {
 	var responseContent strings.Builder
 	ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.contexts))
