@@ -8,6 +8,7 @@ import (
 
 	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
 	"github.com/luoxiaojun1992/ai-agent/pkg/ollama"
+	"github.com/luoxiaojun1992/ai-agent/util/prompt"
 )
 
 type Config struct {
@@ -75,6 +76,36 @@ func (sa *Agent) SetRole(role string) *Agent {
 	return sa
 }
 
+func (sa *Agent) toolPrompt() string {
+	functionPromptList := make([]string, 0, len(sa.skillSet))
+	for skillName, skill := range sa.skillSet {
+		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, skill.getDescription()))
+	}
+	allFunctionPrompt := strings.Join(functionPromptList, "\n")
+	return fmt.Sprintf(`
+When answering questions, if you need to call external tools or resources, please return the function call in JSON format embedded within your response. The JSON should follow this structure:
+<tool>{
+  "function": "function_name",
+  "parameters": {
+    "argument1": "value1",
+    "argument2": "value2"
+  }
+}
+</tool>
+For example, if you need to call a 'search' function to look up information about the weather in New York, you should include this JSON in your response:
+<tool>
+{
+  "function": "search",
+  "parameters": {
+    "query\": "weather in New York"
+  }
+}
+</tool>
+Here is a list of supported functions you can call when needed:
+%s
+`, allFunctionPrompt)
+}
+
 func (sa *Agent) LearnSkill(name string, processor skill) *Agent {
 	sa.skillSet[name] = processor
 	return sa
@@ -97,7 +128,7 @@ type memoryCtx struct {
 func (mc *memoryCtx) toOllamaMessage() *ollama.Message {
 	return &ollama.Message{
 		Role:    mc.role,
-		Content: fmt.Sprintf("[Message has been recalled %d times] ", mc.epoch) + mc.content,
+		Content: fmt.Sprintf("[This message has been recalled %d times] ", mc.epoch) + mc.content,
 	}
 }
 
@@ -139,7 +170,8 @@ func (ad *AgentDouble) AddMemory(role, content string) *AgentDouble {
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
-	return ad.AddMemory("system", personalInfoPrompt)
+	return ad.AddMemory("system", personalInfoPrompt).
+		AddMemory("system", ad.Agent.toolPrompt())
 }
 
 func (ad *AgentDouble) talkToOllama(callback func(response string) error) error {
@@ -164,7 +196,20 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 		return err
 	}
 
-	ad.AddMemory("assistant", responseContent.String())
+	responseContentStr := responseContent.String()
+	ad.AddMemory("assistant", responseContentStr)
+
+	functionCallList, err := prompt.ParseFunctionCalling(responseContentStr)
+	if err != nil {
+		return err
+	}
+	for _, functionCall := range functionCallList {
+		if err := ad.Agent.Command(functionCall.Function, functionCall.Parameters, func(output interface{}) (interface{}, error) {
+			return nil, nil
+		}); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
