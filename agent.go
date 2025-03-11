@@ -114,7 +114,7 @@ func (sa *Agent) LearnSkill(name string, processor skill) *Agent {
 func (sa *Agent) Command(skillName string, cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
 	processor, existed := sa.skillSet[skillName]
 	if !existed {
-		return errors.New("skill hasn't been learned")
+		return errors.New(fmt.Sprintf("skill [%s] hasn't been learned", skillName))
 	}
 	return processor.do(cmdCtx, callback)
 }
@@ -168,10 +168,22 @@ func (ad *AgentDouble) AddMemory(role, content string) *AgentDouble {
 	return ad
 }
 
+func (ad *AgentDouble) AddSystemMemory(content string) *AgentDouble {
+	return ad.AddMemory("system", content)
+}
+
+func (ad *AgentDouble) AddAssistantMemory(content string) *AgentDouble {
+	return ad.AddMemory("assistant", content)
+}
+
+func (ad *AgentDouble) AddUserMemory(content string) *AgentDouble {
+	return ad.AddMemory("user", content)
+}
+
 func (ad *AgentDouble) InitMemory() *AgentDouble {
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
-	return ad.AddMemory("system", personalInfoPrompt).
-		AddMemory("system", ad.Agent.toolPrompt())
+	return ad.AddSystemMemory(personalInfoPrompt).
+		AddSystemMemory(ad.Agent.toolPrompt())
 }
 
 func (ad *AgentDouble) talkToOllama(callback func(response string) error) error {
@@ -205,10 +217,16 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 	}
 	for _, functionCall := range functionCallList {
 		if err := ad.Agent.Command(functionCall.Function, functionCall.Parameters, func(output interface{}) (interface{}, error) {
+			ad.AddSystemMemory(fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output))
 			return nil, nil
 		}); err != nil {
-			return err
+			ad.AddSystemMemory(fmt.Sprintf("The error [%s] happened during executing the function [%s].",
+				err.Error(),
+				functionCall.Function))
+			return nil
 		}
+		ad.AddSystemMemory(
+			fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function))
 	}
 
 	return nil
@@ -229,7 +247,7 @@ func (ad *AgentDouble) Listen(message string, callback func(response string) err
 			return err
 		}
 		if len(ctxVectors) > 0 {
-			ad.AddMemory("system", "Context: \n"+strings.Join(ctxVectors, "\n"))
+			ad.AddSystemMemory("Context: \n" + strings.Join(ctxVectors, "\n"))
 		}
 	}
 
@@ -246,7 +264,7 @@ func (ad *AgentDouble) Think(callback func(output interface{}) error) error {
 }
 
 func (ad *AgentDouble) Learn(info string) *AgentDouble {
-	return ad.AddMemory("system", info)
+	return ad.AddSystemMemory(info)
 }
 
 func (ad *AgentDouble) Read(url string) error {
