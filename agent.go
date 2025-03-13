@@ -144,8 +144,10 @@ func NewMemory() *Memory {
 type AgentDouble struct {
 	config *Config
 
-	Agent  *Agent
-	memory *Memory
+	Agent   *Agent
+	memory  *Memory
+	workDir string
+	mode    string
 }
 
 func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
