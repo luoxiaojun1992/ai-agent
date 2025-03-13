@@ -8,6 +8,7 @@ import (
 	"os"
 
 	ai_agent "github.com/luoxiaojun1992/ai-agent"
+	"github.com/luoxiaojun1992/ai-agent/skill/impl"
 )
 
 const (
@@ -48,6 +49,7 @@ func main() {
 	}
 	agentDouble.Agent.SetCharacter("Kind")
 	agentDouble.Agent.SetRole("General AI")
+	agentDouble.Agent.LearnSkill("team", &impl.Team{})
 	agentDouble.InitMemory()
 
 	fmt.Println("AI agent stared")

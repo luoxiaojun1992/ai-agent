@@ -8,6 +8,7 @@ import (
 
 	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
 	"github.com/luoxiaojun1992/ai-agent/pkg/ollama"
+	"github.com/luoxiaojun1992/ai-agent/skill"
 	"github.com/luoxiaojun1992/ai-agent/util/prompt"
 )
 
@@ -41,7 +42,7 @@ type Agent struct {
 	config *Config
 
 	personalInfo *personalInfo
-	skillSet     map[string]skill
+	skillSet     map[string]skill.Skill
 
 	ollamaCli ollama.IClient
 	milvusCli milvus.IClient
@@ -58,7 +59,7 @@ func NewAgent(ctx context.Context, config *Config) (*Agent, error) {
 	return &Agent{
 		config:       config,
 		personalInfo: &personalInfo{},
-		skillSet:     make(map[string]skill),
+		skillSet:     make(map[string]skill.Skill),
 		ollamaCli: ollama.NewClient(&ollama.Config{
 			Host: config.OllamaHost,
 		}),
@@ -79,7 +80,7 @@ func (sa *Agent) SetRole(role string) *Agent {
 func (sa *Agent) toolPrompt() string {
 	functionPromptList := make([]string, 0, len(sa.skillSet))
 	for skillName, skill := range sa.skillSet {
-		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, skill.getDescription()))
+		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, skill.GetDescription()))
 	}
 	allFunctionPrompt := strings.Join(functionPromptList, "\n")
 	return fmt.Sprintf(`
@@ -106,7 +107,7 @@ Here is a list of supported functions you can call when needed:
 `, allFunctionPrompt)
 }
 
-func (sa *Agent) LearnSkill(name string, processor skill) *Agent {
+func (sa *Agent) LearnSkill(name string, processor skill.Skill) *Agent {
 	sa.skillSet[name] = processor
 	return sa
 }
@@ -116,35 +117,35 @@ func (sa *Agent) Command(skillName string, cmdCtx interface{}, callback func(out
 	if !existed {
 		return errors.New(fmt.Sprintf("skill [%s] hasn't been learned", skillName))
 	}
-	return processor.do(cmdCtx, callback)
+	return processor.Do(cmdCtx, callback)
 }
 
-type memoryCtx struct {
-	role    string
-	content string
-	epoch   int
+type MemoryCtx struct {
+	Role    string
+	Content string
+	Epoch   int
 }
 
-func (mc *memoryCtx) toOllamaMessage() *ollama.Message {
+func (mc *MemoryCtx) toOllamaMessage() *ollama.Message {
 	return &ollama.Message{
-		Role:    mc.role,
-		Content: fmt.Sprintf("[This message has been recalled %d times] ", mc.epoch) + mc.content,
+		Role:    mc.Role,
+		Content: fmt.Sprintf("[This message has been recalled %d times] ", mc.Epoch) + mc.Content,
 	}
 }
 
-type memory struct {
-	contexts []*memoryCtx
+type Memory struct {
+	Contexts []*MemoryCtx
 }
 
-func NewMemory() *memory {
-	return &memory{}
+func NewMemory() *Memory {
+	return &Memory{}
 }
 
 type AgentDouble struct {
 	config *Config
 
 	Agent  *Agent
-	memory *memory
+	memory *Memory
 }
 
 func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
@@ -161,9 +162,9 @@ func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
 }
 
 func (ad *AgentDouble) AddMemory(role, content string) *AgentDouble {
-	ad.memory.contexts = append(ad.memory.contexts, &memoryCtx{
-		role:    role,
-		content: content,
+	ad.memory.Contexts = append(ad.memory.Contexts, &MemoryCtx{
+		Role:    role,
+		Content: content,
 	})
 	return ad
 }
@@ -188,9 +189,9 @@ func (ad *AgentDouble) InitMemory() *AgentDouble {
 
 func (ad *AgentDouble) talkToOllama(callback func(response string) error) error {
 	var responseContent strings.Builder
-	ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.contexts))
-	for _, memCtx := range ad.memory.contexts {
-		memCtx.epoch++
+	ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.Contexts))
+	for _, memCtx := range ad.memory.Contexts {
+		memCtx.Epoch++
 		ollamaMessages = append(ollamaMessages, memCtx.toOllamaMessage())
 	}
 	if err := ad.Agent.ollamaCli.Talk(&ollama.ChatRequest{
@@ -209,7 +210,7 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 	}
 
 	responseContentStr := responseContent.String()
-	ad.AddMemory("assistant", responseContentStr)
+	ad.AddAssistantMemory(responseContentStr)
 
 	functionCallList, err := prompt.ParseFunctionCalling(responseContentStr)
 	if err != nil {
@@ -252,12 +253,12 @@ func (ad *AgentDouble) Listen(message string, callback func(response string) err
 	}
 
 	//Generate response
-	ad.AddMemory("user", message)
+	ad.AddUserMemory(message)
 	return ad.talkToOllama(callback)
 }
 
 func (ad *AgentDouble) Think(callback func(output interface{}) error) error {
-	ad.AddMemory("assistant", "Let me think and output something")
+	ad.AddAssistantMemory("Let me think and output something")
 	return ad.talkToOllama(func(response string) error {
 		return callback(response)
 	})
@@ -273,7 +274,7 @@ func (ad *AgentDouble) Read(url string) error {
 }
 
 func (ad *AgentDouble) Forget(number int) *AgentDouble {
-	memoryLen := len(ad.memory.contexts)
+	memoryLen := len(ad.memory.Contexts)
 	if number < 0 {
 		number = memoryLen
 	}
@@ -284,14 +285,26 @@ func (ad *AgentDouble) Forget(number int) *AgentDouble {
 	leftMemoryLen := memoryLen - number
 
 	if leftMemoryLen <= 0 {
-		ad.memory.contexts = nil
+		ad.memory.Contexts = nil
 		return nil
 	}
 
-	ad.memory.contexts = ad.memory.contexts[:leftMemoryLen]
+	ad.memory.Contexts = ad.memory.Contexts[:leftMemoryLen]
 	return ad
 }
 
 func (ad *AgentDouble) ResetMemory() *AgentDouble {
 	return ad.Forget(-1).InitMemory()
+}
+
+func (ad *AgentDouble) MemorySnapshot() *Memory {
+	memorySnapshot := &Memory{}
+	for _, memoryCtx := range ad.memory.Contexts {
+		memorySnapshot.Contexts = append(memorySnapshot.Contexts, &MemoryCtx{
+			Role:    memoryCtx.Role,
+			Content: memoryCtx.Content,
+			Epoch:   memoryCtx.Epoch,
+		})
+	}
+	return memorySnapshot
 }
