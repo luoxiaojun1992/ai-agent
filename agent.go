@@ -37,6 +37,16 @@ func (pi *personalInfo) prompt() string {
 	return pi.characterPrompt() + "\n" + pi.rolePrompt()
 }
 
+func (pi *personalInfo) setCharacter(character string) *personalInfo {
+	pi.character = character
+	return pi
+}
+
+func (pi *personalInfo) SetRole(role string) *personalInfo {
+	pi.role = role
+	return pi
+}
+
 type Agent struct {
 	//todo search engine client
 	config *Config
@@ -68,13 +78,17 @@ func NewAgent(ctx context.Context, config *Config) (*Agent, error) {
 }
 
 func (sa *Agent) SetCharacter(character string) *Agent {
-	sa.personalInfo.character = character
+	sa.personalInfo.setCharacter(character)
 	return sa
 }
 
 func (sa *Agent) SetRole(role string) *Agent {
-	sa.personalInfo.role = role
+	sa.personalInfo.SetRole(role)
 	return sa
+}
+
+func (sa *Agent) GetDescription() string {
+	return sa.personalInfo.prompt()
 }
 
 func (sa *Agent) toolPrompt() string {
@@ -82,7 +96,7 @@ func (sa *Agent) toolPrompt() string {
 	for skillName, skill := range sa.skillSet {
 		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, skill.GetDescription()))
 	}
-	allFunctionPrompt := strings.Join(functionPromptList, "\n")
+	allFunctionPrompt := strings.Join(functionPromptList, "\n\n")
 	return fmt.Sprintf(`
 When answering questions, if you need to call external tools or resources, please return the function call in JSON format embedded within your response. The JSON should follow this structure:
 <tool>{
