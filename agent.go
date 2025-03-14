@@ -5,11 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
 	"github.com/luoxiaojun1992/ai-agent/pkg/ollama"
 	"github.com/luoxiaojun1992/ai-agent/skill"
 	"github.com/luoxiaojun1992/ai-agent/util/prompt"
+)
+
+type AgentMode string
+
+const (
+	AgentModeChat AgentMode = "chat"
+	AgentModeLoop AgentMode = "loop"
 )
 
 type Config struct {
@@ -18,6 +26,9 @@ type Config struct {
 	OllamaHost       string
 	MilvusHost       string
 	MilvusCollection string
+
+	AgentMode         AgentMode
+	AgentLoopDuration time.Duration
 }
 
 type personalInfo struct {
@@ -158,10 +169,20 @@ func NewMemory() *Memory {
 type AgentDouble struct {
 	config *Config
 
-	Agent   *Agent
-	memory  *Memory
-	workDir string
-	mode    string
+	Agent        *Agent
+	memory       *Memory
+	workDir      string
+	mode         AgentMode
+	loopDuration time.Duration
+}
+
+func NewDoubleWithAgent(agent *Agent, config *Config) *AgentDouble {
+	return &AgentDouble{
+		config: config,
+		Agent:  agent,
+		memory: NewMemory(),
+		mode:   config.AgentMode,
+	}
 }
 
 func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
@@ -170,11 +191,12 @@ func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
 		return nil, err
 	}
 
-	return &AgentDouble{
-		config: config,
-		Agent:  agent,
-		memory: NewMemory(),
-	}, nil
+	return NewDoubleWithAgent(agent, config), nil
+}
+
+func (ad *AgentDouble) loopPrompt() string {
+	//todo
+	return ""
 }
 
 func (ad *AgentDouble) AddMemory(role, content string) *AgentDouble {
@@ -200,7 +222,8 @@ func (ad *AgentDouble) AddUserMemory(content string) *AgentDouble {
 func (ad *AgentDouble) InitMemory() *AgentDouble {
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
 	return ad.AddSystemMemory(personalInfoPrompt).
-		AddSystemMemory(ad.Agent.toolPrompt())
+		AddSystemMemory(ad.Agent.toolPrompt()).
+		AddSystemMemory(ad.loopPrompt())
 }
 
 func (ad *AgentDouble) talkToOllama(callback func(response string) error) error {
@@ -244,6 +267,11 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 		}
 		ad.AddSystemMemory(
 			fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function))
+	}
+
+	if ad.mode == AgentModeLoop {
+		time.Sleep(ad.loopDuration)
+		return ad.talkToOllama(callback)
 	}
 
 	return nil
