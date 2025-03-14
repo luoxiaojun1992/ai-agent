@@ -2,6 +2,7 @@ package milvus
 
 import (
 	"context"
+
 	milvusClient "github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 )
