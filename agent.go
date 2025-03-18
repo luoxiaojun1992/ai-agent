@@ -171,7 +171,6 @@ type AgentDouble struct {
 
 	Agent        *Agent
 	memory       *Memory
-	workDir      string
 	mode         AgentMode
 	loopDuration time.Duration
 }
@@ -257,16 +256,22 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 	}
 	for _, functionCall := range functionCallList {
 		if err := ad.Agent.Command(functionCall.Function, functionCall.Parameters, func(output interface{}) (interface{}, error) {
-			ad.AddSystemMemory(fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output))
+			resultOfFunCall := fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output)
+			ad.AddSystemMemory(resultOfFunCall)
+			callback(resultOfFunCall)
 			return nil, nil
 		}); err != nil {
-			ad.AddSystemMemory(fmt.Sprintf("The error [%s] happened during executing the function [%s].",
+			errorOfFuncCall := fmt.Sprintf("The error [%s] happened during executing the function [%s].",
 				err.Error(),
-				functionCall.Function))
+				functionCall.Function)
+			ad.AddSystemMemory(errorOfFuncCall)
+			callback(errorOfFuncCall)
 			return nil
 		}
-		ad.AddSystemMemory(
-			fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function))
+
+		successOfFuncCall := fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function)
+		ad.AddSystemMemory(successOfFuncCall)
+		callback(successOfFuncCall)
 	}
 
 	if ad.mode == AgentModeLoop {
@@ -351,4 +356,17 @@ func (ad *AgentDouble) MemorySnapshot() *Memory {
 		})
 	}
 	return memorySnapshot
+}
+
+func (ad *AgentDouble) LoadMemory(snapshot *Memory) *AgentDouble {
+	newMemory := &Memory{}
+	for _, memoryCtx := range snapshot.Contexts {
+		newMemory.Contexts = append(newMemory.Contexts, &MemoryCtx{
+			Role:    memoryCtx.Role,
+			Content: memoryCtx.Content,
+			Epoch:   memoryCtx.Epoch,
+		})
+	}
+	ad.memory = newMemory
+	return ad
 }
