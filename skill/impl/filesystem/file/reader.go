@@ -1,11 +1,31 @@
 package file
 
+import "errors"
+
 type Reader struct {
 	RootDir string
 }
 
+func (r *Reader) GetDescription() string {
+	//todo
+	return ""
+}
+
 func (r *Reader) Do(cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
 	//todo
+	params, isValidParams := cmdCtx.(map[string]interface{})
+	if !isValidParams {
+		return errors.New("error converting params for filesystem/file/reader skill")
+	}
+
+	path, hasPath := params["path"]
+	if !hasPath {
+		return errors.New("not found path from params")
+	}
+	pathStr, isValidPath := path.(string)
+	if !isValidPath {
+		return errors.New("error converting path from params")
+	}
 
 	return nil
 }

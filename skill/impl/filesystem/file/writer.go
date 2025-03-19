@@ -9,6 +9,11 @@ type Writer struct {
 	RootDir string
 }
 
+func (w *Writer) GetDescription() string {
+	//todo
+	return ""
+}
+
 func (w *Writer) Do(cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
 	params, isValidParams := cmdCtx.(map[string]interface{})
 	if !isValidParams {
