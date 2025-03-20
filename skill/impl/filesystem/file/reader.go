@@ -1,6 +1,9 @@
 package file
 
-import "errors"
+import (
+	"errors"
+	"os"
+)
 
 type Reader struct {
 	RootDir string
@@ -12,7 +15,6 @@ func (r *Reader) GetDescription() string {
 }
 
 func (r *Reader) Do(cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
-	//todo
 	params, isValidParams := cmdCtx.(map[string]interface{})
 	if !isValidParams {
 		return errors.New("error converting params for filesystem/file/reader skill")
@@ -27,5 +29,9 @@ func (r *Reader) Do(cmdCtx interface{}, callback func(output interface{}) (inter
 		return errors.New("error converting path from params")
 	}
 
-	return nil
+	content, err := os.ReadFile(pathStr)
+	if err != nil {
+		callback(content)
+	}
+	return err
 }
