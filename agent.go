@@ -175,24 +175,26 @@ type AgentDouble struct {
 	memory       *Memory
 	mode         AgentMode
 	loopDuration time.Duration
+	checkpoint   Checkpoint
 }
 
-func NewDoubleWithAgent(agent *Agent, config *Config) *AgentDouble {
+func NewDoubleWithAgent(agent *Agent, config *Config, checkpoint Checkpoint) *AgentDouble {
 	return &AgentDouble{
-		config: config,
-		Agent:  agent,
-		memory: NewMemory(),
-		mode:   config.AgentMode,
+		config:     config,
+		Agent:      agent,
+		memory:     NewMemory(),
+		mode:       config.AgentMode,
+		checkpoint: checkpoint,
 	}
 }
 
-func NewAgentDouble(ctx context.Context, config *Config) (*AgentDouble, error) {
+func NewAgentDouble(ctx context.Context, config *Config, checkpoint Checkpoint) (*AgentDouble, error) {
 	agent, err := NewAgent(ctx, config)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewDoubleWithAgent(agent, config), nil
+	return NewDoubleWithAgent(agent, config, checkpoint), nil
 }
 
 func (ad *AgentDouble) loopPrompt() string {
@@ -277,6 +279,12 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 		successOfFuncCall := fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function)
 		ad.AddSystemMemory(successOfFuncCall)
 		callback(successOfFuncCall)
+	}
+
+	if ad.checkpoint != nil {
+		if err := ad.checkpoint.Do(ad); err != nil {
+			return err
+		}
 	}
 
 	if ad.mode == AgentModeLoop {

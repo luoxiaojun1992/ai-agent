@@ -43,7 +43,7 @@ func main() {
 		OllamaHost:       ollamaHost,
 		MilvusHost:       milvusHost,
 		MilvusCollection: milvusCollection,
-	})
+	}, nil)
 	if err != nil {
 		log.Fatalf("Failed to create AI agent: %v", err)
 	}
