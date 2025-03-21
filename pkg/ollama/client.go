@@ -29,8 +29,9 @@ type ChatRequest struct {
 }
 
 type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string   `json:"role"`
+	Content string   `json:"content"`
+	Images  []string `json:"images"`
 }
 
 type StreamResponse struct {

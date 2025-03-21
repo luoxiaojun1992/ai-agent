@@ -7,22 +7,23 @@ import (
 )
 
 type FunctionCall struct {
-	Function   string                 `json:"function"`
-	Parameters map[string]interface{} `json:"parameters"`
+	Function     string                 `json:"function"`
+	Parameters   map[string]interface{} `json:"parameters"`
+	AbortOnError bool                   `json:"abort_on_error"`
 }
 
 func ParseFunctionCalling(prompt string) ([]*FunctionCall, error) {
 	regExp := regexp.MustCompile(`\<tool>(.+)\</tool>`)
 	matches := regExp.FindAllString(prompt, -1)
-	functionCallList := make([]*FunctionCall, 0, len(matches))
+	funcCallList := make([]*FunctionCall, 0, len(matches))
 	for _, match := range matches {
-		functionCallJson := strings.ReplaceAll(match, "<tool>", "")
-		functionCallJson = strings.ReplaceAll(functionCallJson, "</tool>", "")
+		funcCallJson := strings.ReplaceAll(match, "<tool>", "")
+		funcCallJson = strings.ReplaceAll(funcCallJson, "</tool>", "")
 		functionCall := &FunctionCall{}
-		if err := json.Unmarshal([]byte(functionCallJson), functionCall); err != nil {
+		if err := json.Unmarshal([]byte(funcCallJson), functionCall); err != nil {
 			return nil, err
 		}
-		functionCallList = append(functionCallList, functionCall)
+		funcCallList = append(funcCallList, functionCall)
 	}
-	return functionCallList, nil
+	return funcCallList, nil
 }

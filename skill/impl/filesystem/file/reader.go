@@ -31,7 +31,9 @@ func (r *Reader) Do(cmdCtx interface{}, callback func(output interface{}) (inter
 
 	content, err := os.ReadFile(pathStr)
 	if err != nil {
-		callback(content)
+		if _, errCallback := callback(content); errCallback != nil {
+			return errCallback
+		}
 	}
 	return err
 }

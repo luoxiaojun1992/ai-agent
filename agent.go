@@ -115,7 +115,8 @@ When answering questions, if you need to call external tools or resources, pleas
   "parameters": {
     "argument1": "value1",
     "argument2": "value2"
-  }
+  },
+  "abort_on_error": true
 }
 </tool>
 For example, if you need to call a 'search' function to look up information about the weather in New York, you should include this JSON in your response:
@@ -124,7 +125,8 @@ For example, if you need to call a 'search' function to look up information abou
   "function": "search",
   "parameters": {
     "query\": "weather in New York"
-  }
+  },
+  "abort_on_error": true
 }
 </tool>
 Here is a list of supported functions you can call when needed:
@@ -266,7 +268,10 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 				functionCall.Function)
 			ad.AddSystemMemory(errorOfFuncCall)
 			callback(errorOfFuncCall)
-			return nil
+			if functionCall.AbortOnError {
+				break
+			}
+			continue
 		}
 
 		successOfFuncCall := fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function)

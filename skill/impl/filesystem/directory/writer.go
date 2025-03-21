@@ -29,5 +29,6 @@ func (w *Writer) Do(cmdCtx interface{}, callback func(output interface{}) (inter
 		return errors.New("error converting path from params")
 	}
 
+	//todo test carefully
 	return os.MkdirAll(w.RootDir+"/"+pathStr, os.ModeDir)
 }
