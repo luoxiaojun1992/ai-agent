@@ -23,6 +23,7 @@ const (
 type Config struct {
 	ChatModel        string
 	EmbeddingModel   string
+	SupervisorModel  string
 	OllamaHost       string
 	MilvusHost       string
 	MilvusCollection string
@@ -88,23 +89,23 @@ func NewAgent(ctx context.Context, config *Config) (*Agent, error) {
 	}, nil
 }
 
-func (sa *Agent) SetCharacter(character string) *Agent {
-	sa.personalInfo.setCharacter(character)
-	return sa
+func (a *Agent) SetCharacter(character string) *Agent {
+	a.personalInfo.setCharacter(character)
+	return a
 }
 
-func (sa *Agent) SetRole(role string) *Agent {
-	sa.personalInfo.SetRole(role)
-	return sa
+func (a *Agent) SetRole(role string) *Agent {
+	a.personalInfo.SetRole(role)
+	return a
 }
 
-func (sa *Agent) GetDescription() string {
-	return sa.personalInfo.prompt()
+func (a *Agent) GetDescription() string {
+	return a.personalInfo.prompt()
 }
 
-func (sa *Agent) toolPrompt() string {
-	functionPromptList := make([]string, 0, len(sa.skillSet))
-	for skillName, skill := range sa.skillSet {
+func (a *Agent) toolPrompt() string {
+	functionPromptList := make([]string, 0, len(a.skillSet))
+	for skillName, skill := range a.skillSet {
 		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, skill.GetDescription()))
 	}
 	allFunctionPrompt := strings.Join(functionPromptList, "\n\n")
@@ -134,17 +135,52 @@ Here is a list of supported functions you can call when needed:
 `, allFunctionPrompt)
 }
 
-func (sa *Agent) LearnSkill(name string, processor skill.Skill) *Agent {
-	sa.skillSet[name] = processor
-	return sa
+func (a *Agent) LearnSkill(name string, processor skill.Skill) *Agent {
+	a.skillSet[name] = processor
+	return a
 }
 
-func (sa *Agent) Command(skillName string, cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
-	processor, existed := sa.skillSet[skillName]
+func (a *Agent) Command(skillName string, cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
+	processor, existed := a.skillSet[skillName]
 	if !existed {
 		return errors.New(fmt.Sprintf("skill [%s] hasn't been learned", skillName))
 	}
 	return processor.Do(cmdCtx, callback)
+}
+
+func (a *Agent) talkToOllama(model string, messages []*ollama.Message, callback func(response string) error) (string, error) {
+	var responseContent strings.Builder
+	if err := a.ollamaCli.Talk(&ollama.ChatRequest{
+		Model:    model,
+		Messages: messages,
+	}, func(response string) error {
+		if _, err := responseContent.WriteString(response); err != nil {
+			return err
+		}
+		return callback(response)
+	}); err != nil {
+		return "", err
+	}
+
+	return responseContent.String(), nil
+}
+
+func (a *Agent) reviewResponse(response string) (bool, error) {
+	checkResult, err := a.talkToOllama(a.config.SupervisorModel, []*ollama.Message{
+		{
+			Role: "user",
+			Content: `Analyze the logical coherence of the following content.
+If there are logical problems such as contradictions, unreasonable causal relationships, or incomplete reasoning, output 'true';
+if there are no logical problems, output 'false'.
+Content to be analyzed:` + "\n" + response,
+		},
+	}, func(_ string) error {
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return checkResult == "true", nil
 }
 
 type MemoryCtx struct {
@@ -229,29 +265,25 @@ func (ad *AgentDouble) InitMemory() *AgentDouble {
 		AddSystemMemory(ad.loopPrompt())
 }
 
-func (ad *AgentDouble) talkToOllama(callback func(response string) error) error {
-	var responseContent strings.Builder
+func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) error) error {
 	ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.Contexts))
 	for _, memCtx := range ad.memory.Contexts {
 		memCtx.Epoch++
 		ollamaMessages = append(ollamaMessages, memCtx.toOllamaMessage())
 	}
-	if err := ad.Agent.ollamaCli.Talk(&ollama.ChatRequest{
-		Model:    ad.config.ChatModel,
-		Messages: ollamaMessages,
-	}, func(response string) error {
-		if _, err := responseContent.WriteString(response); err != nil {
-			return err
-		}
-		if err := callback(response); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
+	responseContentStr, err := ad.Agent.talkToOllama(ad.config.ChatModel, ollamaMessages, callback)
+	if err != nil {
 		return err
 	}
 
-	responseContentStr := responseContent.String()
+	isCompliant, err := ad.Agent.reviewResponse(responseContentStr)
+	if err != nil {
+		return err
+	}
+	if !isCompliant {
+		return errors.New("response from model is non-compliant")
+	}
+
 	ad.AddAssistantMemory(responseContentStr)
 
 	functionCallList, err := prompt.ParseFunctionCalling(responseContentStr)
@@ -289,7 +321,7 @@ func (ad *AgentDouble) talkToOllama(callback func(response string) error) error 
 
 	if ad.mode == AgentModeLoop {
 		time.Sleep(ad.loopDuration)
-		return ad.talkToOllama(callback)
+		return ad.talkToOllamaWithMemory(callback)
 	}
 
 	return nil
@@ -316,12 +348,12 @@ func (ad *AgentDouble) Listen(message string, callback func(response string) err
 
 	//Generate response
 	ad.AddUserMemory(message)
-	return ad.talkToOllama(callback)
+	return ad.talkToOllamaWithMemory(callback)
 }
 
 func (ad *AgentDouble) Think(callback func(output interface{}) error) error {
 	ad.AddAssistantMemory("Let me think and output something")
-	return ad.talkToOllama(func(response string) error {
+	return ad.talkToOllamaWithMemory(func(response string) error {
 		return callback(response)
 	})
 }
