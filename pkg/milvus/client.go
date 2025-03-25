@@ -9,6 +9,7 @@ import (
 
 type IClient interface {
 	SearchVector(collectionName string, vector []float32) ([]string, error)
+	Close() error
 }
 
 type Config struct {
@@ -33,6 +34,11 @@ func NewClient(ctx context.Context, config *Config) (*Client, error) {
 		config:    config,
 		milvusCli: milvusCli,
 	}, nil
+}
+
+func (c *Client) InsertVector() error {
+	//todo
+	return nil
 }
 
 func (c *Client) SearchVector(collectionName string, vector []float32) ([]string, error) {
@@ -69,4 +75,8 @@ func (c *Client) SearchVector(collectionName string, vector []float32) ([]string
 	}
 
 	return contents, nil
+}
+
+func (c *Client) Close() error {
+	return c.milvusCli.Close()
 }

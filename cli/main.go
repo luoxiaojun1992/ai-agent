@@ -47,6 +47,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create AI agent: %v", err)
 	}
+	defer func() {
+		if err := agentDouble.Agent.Close(); err != nil {
+			log.Fatalf("Failed to close AI agent: %v", err)
+		}
+	}()
 	agentDouble.Agent.SetCharacter("Kind")
 	agentDouble.Agent.SetRole("General AI")
 	agentDouble.Agent.LearnSkill("team", &impl.Team{})

@@ -183,6 +183,10 @@ Content to be analyzed:` + "\n" + response,
 	return checkResult == "true", nil
 }
 
+func (a *Agent) Close() error {
+	return a.milvusCli.Close()
+}
+
 type MemoryCtx struct {
 	Role    string
 	Content string
@@ -367,6 +371,11 @@ func (ad *AgentDouble) Learn(info string) *AgentDouble {
 
 func (ad *AgentDouble) Read(url string) error {
 	//todo
+	return nil
+}
+
+func (ad *AgentDouble) Write() error {
+	//todo write something to milvus
 	return nil
 }
 
