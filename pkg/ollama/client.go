@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -79,7 +78,7 @@ func (c *Client) EmbeddingPrompt(embedReq *EmbedRequest) (*EmbedResponse, error)
 		resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(fmt.Sprintf("error embedding prompt, status code %d", resp.StatusCode))
+		return nil, fmt.Errorf("error embedding prompt, status code %d", resp.StatusCode)
 	}
 
 	embedResponseBytes, err := io.ReadAll(resp.Body)
@@ -113,7 +112,7 @@ func (c *Client) Talk(chatReq *ChatRequest, callback func(response string) error
 		resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return errors.New(fmt.Sprintf("error talking to ollama, status code %d", resp.StatusCode))
+		return fmt.Errorf("error talking to ollama, status code %d", resp.StatusCode)
 	}
 
 	scanner := bufio.NewScanner(resp.Body)

@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,8 +38,8 @@ This description provides clear guidance on the team's composition and how to in
 	return fmt.Sprintf(description, allMemberDescription)
 }
 
-func (t *Team) Do(cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
-	params, isValidParams := cmdCtx.(map[string]interface{})
+func (t *Team) Do(ctx context.Context, cmdCtx any, callback func(output any) (any, error)) error {
+	params, isValidParams := cmdCtx.(map[string]any)
 	if !isValidParams {
 		return errors.New("error converting params for team skill")
 	}
@@ -53,7 +54,7 @@ func (t *Team) Do(cmdCtx interface{}, callback func(output interface{}) (interfa
 	}
 	member, hasMember := t.Members[memberNameStr]
 	if !hasMember {
-		return errors.New(fmt.Sprintf("not found member [%s]", memberNameStr))
+		return fmt.Errorf("not found member [%s]", memberNameStr)
 	}
 
 	message, hasMessage := params["message"]
@@ -65,7 +66,7 @@ func (t *Team) Do(cmdCtx interface{}, callback func(output interface{}) (interfa
 		return errors.New("error converting message from params")
 	}
 
-	return member.ListenAndWatch(messageStr, nil, func(response string) error {
+	return member.ListenAndWatch(ctx, messageStr, nil, func(response string) error {
 		_, err := callback(response)
 		return err
 	})

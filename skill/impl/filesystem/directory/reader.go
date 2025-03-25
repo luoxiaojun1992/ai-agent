@@ -1,6 +1,7 @@
 package directory
 
 import (
+	"context"
 	"errors"
 	"os"
 )
@@ -14,8 +15,8 @@ func (r *Reader) GetDescription() string {
 	return ""
 }
 
-func (r *Reader) Do(cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
-	params, isValidParams := cmdCtx.(map[string]interface{})
+func (r *Reader) Do(_ context.Context, cmdCtx any, callback func(output any) (any, error)) error {
+	params, isValidParams := cmdCtx.(map[string]any)
 	if !isValidParams {
 		return errors.New("error converting params for filesystem/directory/reader skill")
 	}

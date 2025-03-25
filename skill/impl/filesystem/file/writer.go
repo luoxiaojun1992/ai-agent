@@ -1,6 +1,7 @@
 package file
 
 import (
+	"context"
 	"errors"
 	"os"
 )
@@ -14,8 +15,8 @@ func (w *Writer) GetDescription() string {
 	return ""
 }
 
-func (w *Writer) Do(cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
-	params, isValidParams := cmdCtx.(map[string]interface{})
+func (w *Writer) Do(_ context.Context, cmdCtx any, callback func(output any) (any, error)) error {
+	params, isValidParams := cmdCtx.(map[string]any)
 	if !isValidParams {
 		return errors.New("error converting params for filesystem/file/writer skill")
 	}

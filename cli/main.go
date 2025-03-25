@@ -17,6 +17,8 @@ const (
 )
 
 func main() {
+	ctx := context.Background()
+
 	if len(os.Args) < 3 {
 		fmt.Println("Usage: go run main.go <milvus_collection> <embed_model_name> <chat_model_name> [<ollama_host> <milvus_host>]")
 		fmt.Println("Default ollama host: http://localhost:11434")
@@ -87,7 +89,7 @@ func main() {
 
 		fmt.Println("Generating...")
 
-		if err := agentDouble.ListenAndWatch(prompt, nil, func(response string) error {
+		if err := agentDouble.ListenAndWatch(ctx, prompt, nil, func(response string) error {
 			_, err := fmt.Print(response)
 			return err
 		}); err != nil {

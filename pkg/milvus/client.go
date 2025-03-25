@@ -8,7 +8,7 @@ import (
 )
 
 type IClient interface {
-	SearchVector(collectionName string, vector []float32) ([]string, error)
+	SearchVector(ctx context.Context, collectionName string, vector []float32) ([]string, error)
 	Close() error
 }
 
@@ -36,12 +36,13 @@ func NewClient(ctx context.Context, config *Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) InsertVector() error {
+func (c *Client) InsertVector(ctx context.Context) error {
 	//todo
+	// c.milvusCli.Insert()
 	return nil
 }
 
-func (c *Client) SearchVector(collectionName string, vector []float32) ([]string, error) {
+func (c *Client) SearchVector(ctx context.Context, collectionName string, vector []float32) ([]string, error) {
 	var contents []string
 
 	sp, err := entity.NewIndexFlatSearchParam()
@@ -49,7 +50,7 @@ func (c *Client) SearchVector(collectionName string, vector []float32) ([]string
 		return nil, err
 	}
 	resList, err := c.milvusCli.Search(
-		context.Background(),
+		ctx,
 		collectionName,
 		[]string{},
 		"",

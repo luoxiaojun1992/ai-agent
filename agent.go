@@ -140,12 +140,12 @@ func (a *Agent) LearnSkill(name string, processor skill.Skill) *Agent {
 	return a
 }
 
-func (a *Agent) Command(skillName string, cmdCtx interface{}, callback func(output interface{}) (interface{}, error)) error {
+func (a *Agent) Command(ctx context.Context, skillName string, cmdCtx any, callback func(output any) (any, error)) error {
 	processor, existed := a.skillSet[skillName]
 	if !existed {
-		return errors.New(fmt.Sprintf("skill [%s] hasn't been learned", skillName))
+		return fmt.Errorf("skill [%s] hasn't been learned", skillName)
 	}
-	return processor.Do(cmdCtx, callback)
+	return processor.Do(ctx, cmdCtx, callback)
 }
 
 func (a *Agent) talkToOllama(model string, messages []*ollama.Message, callback func(response string) error) (string, error) {
@@ -271,7 +271,7 @@ func (ad *AgentDouble) InitMemory() *AgentDouble {
 		AddSystemMemory(ad.loopPrompt(), nil)
 }
 
-func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) error) error {
+func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func(response string) error) error {
 	ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.Contexts))
 	for _, memCtx := range ad.memory.Contexts {
 		memCtx.Epoch++
@@ -298,7 +298,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) err
 		return err
 	}
 	for _, functionCall := range functionCallList {
-		if err := ad.Agent.Command(functionCall.Function, functionCall.Parameters, func(output interface{}) (interface{}, error) {
+		if err := ad.Agent.Command(ctx, functionCall.Function, functionCall.Parameters, func(output any) (any, error) {
 			resultOfFunCall := fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output)
 			ad.AddSystemMemory(resultOfFunCall, nil)
 			callback(resultOfFunCall)
@@ -328,13 +328,13 @@ func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) err
 
 	if ad.mode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {
 		time.Sleep(ad.loopDuration)
-		return ad.talkToOllamaWithMemory(callback)
+		return ad.talkToOllamaWithMemory(ctx, callback)
 	}
 
 	return nil
 }
 
-func (ad *AgentDouble) ListenAndWatch(message string, images []string, callback func(response string) error) error {
+func (ad *AgentDouble) ListenAndWatch(ctx context.Context, message string, images []string, callback func(response string) error) error {
 	//Search context
 	embeddingResponse, err := ad.Agent.ollamaCli.EmbeddingPrompt(&ollama.EmbedRequest{
 		Model: ad.config.EmbeddingModel,
@@ -344,7 +344,7 @@ func (ad *AgentDouble) ListenAndWatch(message string, images []string, callback 
 		return err
 	}
 	if len(embeddingResponse.Embeddings) > 0 && len(embeddingResponse.Embeddings[0]) > 0 {
-		ctxVectors, err := ad.Agent.milvusCli.SearchVector(ad.config.MilvusCollection, embeddingResponse.Embeddings[0])
+		ctxVectors, err := ad.Agent.milvusCli.SearchVector(ctx, ad.config.MilvusCollection, embeddingResponse.Embeddings[0])
 		if err != nil {
 			return err
 		}
@@ -355,12 +355,12 @@ func (ad *AgentDouble) ListenAndWatch(message string, images []string, callback 
 
 	//Generate response
 	ad.AddUserMemory(message, images)
-	return ad.talkToOllamaWithMemory(callback)
+	return ad.talkToOllamaWithMemory(ctx, callback)
 }
 
-func (ad *AgentDouble) Think(callback func(output interface{}) error) error {
+func (ad *AgentDouble) Think(ctx context.Context, callback func(output any) error) error {
 	ad.AddAssistantMemory("Let me think and output something", nil)
-	return ad.talkToOllamaWithMemory(func(response string) error {
+	return ad.talkToOllamaWithMemory(ctx, func(response string) error {
 		return callback(response)
 	})
 }
