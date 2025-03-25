@@ -59,6 +59,12 @@ func (pi *personalInfo) SetRole(role string) *personalInfo {
 	return pi
 }
 
+type AgentOption {
+	ollamaCli ollama.IClient
+	milvusCli milvus.IClient
+}
+//todo
+
 type Agent struct {
 	//todo search engine client
 	config *Config
