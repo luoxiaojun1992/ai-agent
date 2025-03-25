@@ -65,7 +65,7 @@ func (t *Team) Do(cmdCtx interface{}, callback func(output interface{}) (interfa
 		return errors.New("error converting message from params")
 	}
 
-	return member.Listen(messageStr, func(response string) error {
+	return member.ListenAndWatch(messageStr, nil, func(response string) error {
 		_, err := callback(response)
 		return err
 	})

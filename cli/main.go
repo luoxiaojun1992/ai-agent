@@ -82,7 +82,7 @@ func main() {
 
 		fmt.Println("Generating...")
 
-		if err := agentDouble.Listen(prompt, func(response string) error {
+		if err := agentDouble.ListenAndWatch(prompt, nil, func(response string) error {
 			_, err := fmt.Print(response)
 			return err
 		}); err != nil {

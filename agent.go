@@ -186,6 +186,7 @@ Content to be analyzed:` + "\n" + response,
 type MemoryCtx struct {
 	Role    string
 	Content string
+	Images  []string
 	Epoch   int
 }
 
@@ -193,6 +194,7 @@ func (mc *MemoryCtx) toOllamaMessage() *ollama.Message {
 	return &ollama.Message{
 		Role:    mc.Role,
 		Content: fmt.Sprintf("[This message has been recalled %d times] ", mc.Epoch) + mc.Content,
+		Images:  append(make([]string, 0, len(mc.Images)), mc.Images...),
 	}
 }
 
@@ -237,31 +239,32 @@ func (ad *AgentDouble) loopPrompt() string {
 	return "Determine if the conversation should continue. If not, include <loop_end/> in your response."
 }
 
-func (ad *AgentDouble) AddMemory(role, content string) *AgentDouble {
+func (ad *AgentDouble) AddMemory(role, content string, images []string) *AgentDouble {
 	ad.memory.Contexts = append(ad.memory.Contexts, &MemoryCtx{
 		Role:    role,
 		Content: content,
+		Images:  images,
 	})
 	return ad
 }
 
-func (ad *AgentDouble) AddSystemMemory(content string) *AgentDouble {
-	return ad.AddMemory("system", content)
+func (ad *AgentDouble) AddSystemMemory(content string, images []string) *AgentDouble {
+	return ad.AddMemory("system", content, images)
 }
 
-func (ad *AgentDouble) AddAssistantMemory(content string) *AgentDouble {
-	return ad.AddMemory("assistant", content)
+func (ad *AgentDouble) AddAssistantMemory(content string, images []string) *AgentDouble {
+	return ad.AddMemory("assistant", content, images)
 }
 
-func (ad *AgentDouble) AddUserMemory(content string) *AgentDouble {
-	return ad.AddMemory("user", content)
+func (ad *AgentDouble) AddUserMemory(content string, images []string) *AgentDouble {
+	return ad.AddMemory("user", content, images)
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
-	return ad.AddSystemMemory(personalInfoPrompt).
-		AddSystemMemory(ad.Agent.toolPrompt()).
-		AddSystemMemory(ad.loopPrompt())
+	return ad.AddSystemMemory(personalInfoPrompt, nil).
+		AddSystemMemory(ad.Agent.toolPrompt(), nil).
+		AddSystemMemory(ad.loopPrompt(), nil)
 }
 
 func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) error) error {
@@ -284,7 +287,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) err
 		return errors.New("response from model is non-compliant")
 	}
 
-	ad.AddAssistantMemory(responseContentStr)
+	ad.AddAssistantMemory(responseContentStr, nil)
 
 	functionCallList, err := prompt.ParseFunctionCalling(responseContentStr)
 	if err != nil {
@@ -293,14 +296,14 @@ func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) err
 	for _, functionCall := range functionCallList {
 		if err := ad.Agent.Command(functionCall.Function, functionCall.Parameters, func(output interface{}) (interface{}, error) {
 			resultOfFunCall := fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output)
-			ad.AddSystemMemory(resultOfFunCall)
+			ad.AddSystemMemory(resultOfFunCall, nil)
 			callback(resultOfFunCall)
 			return nil, nil
 		}); err != nil {
 			errorOfFuncCall := fmt.Sprintf("The error [%s] happened during executing the function [%s].",
 				err.Error(),
 				functionCall.Function)
-			ad.AddSystemMemory(errorOfFuncCall)
+			ad.AddSystemMemory(errorOfFuncCall, nil)
 			callback(errorOfFuncCall)
 			if functionCall.AbortOnError {
 				break
@@ -309,7 +312,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) err
 		}
 
 		successOfFuncCall := fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function)
-		ad.AddSystemMemory(successOfFuncCall)
+		ad.AddSystemMemory(successOfFuncCall, nil)
 		callback(successOfFuncCall)
 	}
 
@@ -327,7 +330,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) err
 	return nil
 }
 
-func (ad *AgentDouble) Listen(message string, callback func(response string) error) error {
+func (ad *AgentDouble) ListenAndWatch(message string, images []string, callback func(response string) error) error {
 	//Search context
 	embeddingResponse, err := ad.Agent.ollamaCli.EmbeddingPrompt(&ollama.EmbedRequest{
 		Model: ad.config.EmbeddingModel,
@@ -342,24 +345,24 @@ func (ad *AgentDouble) Listen(message string, callback func(response string) err
 			return err
 		}
 		if len(ctxVectors) > 0 {
-			ad.AddSystemMemory("Context: \n" + strings.Join(ctxVectors, "\n"))
+			ad.AddSystemMemory("Context: \n"+strings.Join(ctxVectors, "\n"), nil)
 		}
 	}
 
 	//Generate response
-	ad.AddUserMemory(message)
+	ad.AddUserMemory(message, images)
 	return ad.talkToOllamaWithMemory(callback)
 }
 
 func (ad *AgentDouble) Think(callback func(output interface{}) error) error {
-	ad.AddAssistantMemory("Let me think and output something")
+	ad.AddAssistantMemory("Let me think and output something", nil)
 	return ad.talkToOllamaWithMemory(func(response string) error {
 		return callback(response)
 	})
 }
 
 func (ad *AgentDouble) Learn(info string) *AgentDouble {
-	return ad.AddSystemMemory(info)
+	return ad.AddSystemMemory(info, nil)
 }
 
 func (ad *AgentDouble) Read(url string) error {
@@ -397,6 +400,7 @@ func (ad *AgentDouble) MemorySnapshot() *Memory {
 		memorySnapshot.Contexts = append(memorySnapshot.Contexts, &MemoryCtx{
 			Role:    memoryCtx.Role,
 			Content: memoryCtx.Content,
+			Images:  append(make([]string, 0, len(memoryCtx.Images)), memoryCtx.Images...),
 			Epoch:   memoryCtx.Epoch,
 		})
 	}
@@ -409,6 +413,7 @@ func (ad *AgentDouble) LoadMemory(snapshot *Memory) *AgentDouble {
 		newMemory.Contexts = append(newMemory.Contexts, &MemoryCtx{
 			Role:    memoryCtx.Role,
 			Content: memoryCtx.Content,
+			Images:  append(make([]string, 0, len(memoryCtx.Images)), memoryCtx.Images...),
 			Epoch:   memoryCtx.Epoch,
 		})
 	}
