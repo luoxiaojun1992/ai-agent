@@ -13,6 +13,7 @@ type FunctionCall struct {
 }
 
 func ParseFunctionCalling(prompt string) ([]*FunctionCall, error) {
+	//todo test
 	regExp := regexp.MustCompile(`\<tool>(.+)\</tool>`)
 	matches := regExp.FindAllString(prompt, -1)
 	funcCallList := make([]*FunctionCall, 0, len(matches))
@@ -26,4 +27,9 @@ func ParseFunctionCalling(prompt string) ([]*FunctionCall, error) {
 		funcCallList = append(funcCallList, functionCall)
 	}
 	return funcCallList, nil
+}
+
+func ParseLoopEnd(prompt string) bool {
+	regExp := regexp.MustCompile(`\<loop_end/>`)
+	return regExp.MatchString(prompt)
 }

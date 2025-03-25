@@ -234,8 +234,7 @@ func NewAgentDouble(ctx context.Context, config *Config, checkpoint Checkpoint) 
 }
 
 func (ad *AgentDouble) loopPrompt() string {
-	//todo
-	return ""
+	return "Determine if the conversation should continue. If not, include <loop_end/> in your response."
 }
 
 func (ad *AgentDouble) AddMemory(role, content string) *AgentDouble {
@@ -276,6 +275,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) err
 		return err
 	}
 
+	//todo test if output only contains true or false
 	isCompliant, err := ad.Agent.reviewResponse(responseContentStr)
 	if err != nil {
 		return err
@@ -319,7 +319,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(callback func(response string) err
 		}
 	}
 
-	if ad.mode == AgentModeLoop {
+	if ad.mode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {
 		time.Sleep(ad.loopDuration)
 		return ad.talkToOllamaWithMemory(callback)
 	}
