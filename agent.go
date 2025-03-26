@@ -59,11 +59,44 @@ func (pi *personalInfo) SetRole(role string) *personalInfo {
 	return pi
 }
 
-type AgentOption {
+type AgentOption struct {
+	config    *Config
 	ollamaCli ollama.IClient
 	milvusCli milvus.IClient
+	character string
+	role      string
+	skillSet  map[string]skill.Skill
 }
-//todo
+
+func (ao *AgentOption) SetConfig(config *Config) *AgentOption {
+	ao.config = config
+	return ao
+}
+
+func (ao *AgentOption) SetOllamaCli(ollamaCli ollama.IClient) *AgentOption {
+	ao.ollamaCli = ollamaCli
+	return ao
+}
+
+func (ao *AgentOption) SetMilvusCli(milvusCli milvus.IClient) *AgentOption {
+	ao.milvusCli = milvusCli
+	return ao
+}
+
+func (ao *AgentOption) SetCharacter(character string) *AgentOption {
+	ao.character = character
+	return ao
+}
+
+func (ao *AgentOption) SetRole(role string) *AgentOption {
+	ao.role = role
+	return ao
+}
+
+func (ao *AgentOption) AddSkill(name string, processor skill.Skill) *AgentOption {
+	ao.skillSet[name] = processor
+	return ao
+}
 
 type Agent struct {
 	//todo search engine client
@@ -76,22 +109,40 @@ type Agent struct {
 	milvusCli milvus.IClient
 }
 
-func NewAgent(ctx context.Context, config *Config) (*Agent, error) {
-	milvusCli, err := milvus.NewClient(ctx, &milvus.Config{
-		Host: config.MilvusHost,
-	})
-	if err != nil {
-		return nil, err
+func NewAgent(ctx context.Context, optionFuncs ...func(option *AgentOption)) (*Agent, error) {
+	option := &AgentOption{
+		skillSet: make(map[string]skill.Skill),
+	}
+	for _, optionFunc := range optionFuncs {
+		optionFunc(option)
+	}
+	if option.config == nil {
+		return nil, errors.New("invalid agent config")
+	}
+	if option.ollamaCli == nil {
+		option.SetOllamaCli(ollama.NewClient(&ollama.Config{
+			Host: option.config.OllamaHost,
+		}))
+	}
+	if option.milvusCli == nil {
+		milvusCli, err := milvus.NewClient(ctx, &milvus.Config{
+			Host: option.config.MilvusHost,
+		})
+		if err != nil {
+			return nil, err
+		}
+		option.SetMilvusCli(milvusCli)
 	}
 
 	return &Agent{
-		config:       config,
-		personalInfo: &personalInfo{},
-		skillSet:     make(map[string]skill.Skill),
-		ollamaCli: ollama.NewClient(&ollama.Config{
-			Host: config.OllamaHost,
-		}),
-		milvusCli: milvusCli,
+		config: option.config,
+		personalInfo: &personalInfo{
+			character: option.character,
+			role:      option.role,
+		},
+		skillSet:  option.skillSet,
+		ollamaCli: option.ollamaCli,
+		milvusCli: option.milvusCli,
 	}, nil
 }
 
@@ -216,33 +267,59 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
+type AgentDoubleOption struct {
+	config     *Config
+	agent      *Agent
+	checkpoint Checkpoint
+}
+
+func (ado *AgentDoubleOption) SetConfig(config *Config) *AgentDoubleOption {
+	ado.config = config
+	return ado
+}
+
+func (ado *AgentDoubleOption) SetAgent(agent *Agent) *AgentDoubleOption {
+	ado.agent = agent
+	return ado
+}
+
+func (ado *AgentDoubleOption) SetCheckpoint(checkpoint Checkpoint) *AgentDoubleOption {
+	ado.checkpoint = checkpoint
+	return ado
+}
+
 type AgentDouble struct {
 	config *Config
 
-	Agent        *Agent
-	memory       *Memory
-	mode         AgentMode
-	loopDuration time.Duration
-	checkpoint   Checkpoint
+	Agent      *Agent
+	memory     *Memory
+	checkpoint Checkpoint
 }
 
-func NewDoubleWithAgent(agent *Agent, config *Config, checkpoint Checkpoint) *AgentDouble {
+func NewAgentDouble(ctx context.Context, optionFuncs ...func(option *AgentDoubleOption)) (*AgentDouble, error) {
+	doubleOption := &AgentDoubleOption{}
+	for _, optionFunc := range optionFuncs {
+		optionFunc(doubleOption)
+	}
+	if doubleOption.config == nil {
+		return nil, errors.New("invalid agent double config")
+	}
+	if doubleOption.agent == nil {
+		agent, err := NewAgent(ctx, func(option *AgentOption) {
+			option.SetConfig(doubleOption.config)
+		})
+		if err != nil {
+			return nil, err
+		}
+		doubleOption.SetAgent(agent)
+	}
+
 	return &AgentDouble{
-		config:     config,
-		Agent:      agent,
+		config:     doubleOption.config,
+		Agent:      doubleOption.agent,
 		memory:     NewMemory(),
-		mode:       config.AgentMode,
-		checkpoint: checkpoint,
-	}
-}
-
-func NewAgentDouble(ctx context.Context, config *Config, checkpoint Checkpoint) (*AgentDouble, error) {
-	agent, err := NewAgent(ctx, config)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewDoubleWithAgent(agent, config, checkpoint), nil
+		checkpoint: doubleOption.checkpoint,
+	}, nil
 }
 
 func (ad *AgentDouble) loopPrompt() string {
@@ -332,8 +409,8 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		}
 	}
 
-	if ad.mode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {
-		time.Sleep(ad.loopDuration)
+	if ad.config.AgentMode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {
+		time.Sleep(ad.config.AgentLoopDuration)
 		return ad.talkToOllamaWithMemory(ctx, callback)
 	}
 

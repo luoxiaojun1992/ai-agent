@@ -39,12 +39,14 @@ func main() {
 		milvusHost = os.Args[5]
 	}
 
-	agentDouble, err := ai_agent.NewAgentDouble(context.Background(), &ai_agent.Config{
-		ChatModel:        chatModelName,
-		EmbeddingModel:   embedModelName,
-		OllamaHost:       ollamaHost,
-		MilvusHost:       milvusHost,
-		MilvusCollection: milvusCollection,
+	agentDouble, err := ai_agent.NewAgentDouble(context.Background(), func(option *ai_agent.AgentDoubleOption) {
+		option.SetConfig(&ai_agent.Config{
+			ChatModel:        chatModelName,
+			EmbeddingModel:   embedModelName,
+			OllamaHost:       ollamaHost,
+			MilvusHost:       milvusHost,
+			MilvusCollection: milvusCollection,
+		})
 	}, nil)
 	if err != nil {
 		log.Fatalf("Failed to create AI agent: %v", err)
