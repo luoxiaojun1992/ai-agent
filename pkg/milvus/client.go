@@ -36,9 +36,9 @@ func NewClient(ctx context.Context, config *Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) InsertVector(ctx context.Context) error {
+func (c *Client) InsertVector(ctx context.Context, collectionName string) error {
 	//todo
-	// c.milvusCli.Insert()
+	// c.milvusCli.Insert(ctx, collectionName, "", entity.NewColumnFloatVector())
 	return nil
 }
 
