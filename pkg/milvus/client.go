@@ -8,6 +8,7 @@ import (
 )
 
 type IClient interface {
+	InsertVector(ctx context.Context, collectionName, content string, vector []float32) error
 	SearchVector(ctx context.Context, collectionName string, vector []float32) ([]string, error)
 	Close() error
 }
@@ -36,10 +37,15 @@ func NewClient(ctx context.Context, config *Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) InsertVector(ctx context.Context, collectionName string) error {
-	//todo
-	// c.milvusCli.Insert(ctx, collectionName, "", entity.NewColumnFloatVector())
-	return nil
+func (c *Client) InsertVector(ctx context.Context, collectionName, content string, vector []float32) error {
+	_, err := c.milvusCli.Insert(
+		ctx,
+		collectionName,
+		"",
+		entity.NewColumnString("content", []string{content}),
+		entity.NewColumnFloatVector("content_embedding", len(vector), [][]float32{vector}),
+	)
+	return err
 }
 
 func (c *Client) SearchVector(ctx context.Context, collectionName string, vector []float32) ([]string, error) {

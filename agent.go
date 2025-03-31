@@ -457,8 +457,17 @@ func (ad *AgentDouble) Read(url string) error {
 	return nil
 }
 
-func (ad *AgentDouble) Write() error {
-	//todo write something to milvus
+func (ad *AgentDouble) Remember(ctx context.Context, info string) error {
+	embeddingResponse, err := ad.Agent.ollamaCli.EmbeddingPrompt(&ollama.EmbedRequest{
+		Model: ad.config.EmbeddingModel,
+		Input: info,
+	})
+	if err != nil {
+		return err
+	}
+	if len(embeddingResponse.Embeddings) > 0 && len(embeddingResponse.Embeddings[0]) > 0 {
+		return ad.Agent.milvusCli.InsertVector(ctx, ad.config.MilvusCollection, info, embeddingResponse.Embeddings[0])
+	}
 	return nil
 }
 
