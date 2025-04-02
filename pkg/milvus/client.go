@@ -72,7 +72,7 @@ func (c *Client) SearchVector(ctx context.Context, collectionName string, vector
 	}
 	for _, res := range resList {
 		contentColumn := res.Fields.GetColumn("content")
-		for i := 0; i < res.ResultCount; i++ {
+		for i := range res.ResultCount {
 			content, err := contentColumn.GetAsString(i)
 			if err != nil {
 				return nil, err

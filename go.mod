@@ -2,7 +2,10 @@ module github.com/luoxiaojun1992/ai-agent
 
 go 1.23.4
 
-require github.com/milvus-io/milvus-sdk-go/v2 v2.4.2
+require (
+	github.com/mark3labs/mcp-go v0.17.0
+	github.com/milvus-io/milvus-sdk-go/v2 v2.4.2
+)
 
 require (
 	github.com/cockroachdb/errors v1.9.1 // indirect
@@ -17,9 +20,11 @@ require (
 	github.com/milvus-io/milvus-proto/go-api/v2 v2.4.10-0.20240819025435-512e3b98866a // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
