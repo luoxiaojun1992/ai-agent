@@ -177,6 +177,7 @@ When answering questions, if you need to call external tools or resources, pleas
   "abort_on_error": true
 }
 </tool>
+The value of parameter might be JSON object or other data structure according to the payload definition of specific tool.
 For example, if you need to call a 'search' function to look up information about the weather in New York, you should include this JSON in your response:
 <tool>
 {

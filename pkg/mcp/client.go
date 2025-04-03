@@ -24,7 +24,7 @@ type Client struct {
 }
 
 func NewClient(config *Config) (*Client, error) {
-	sseMCPClient, err := mcpClient.NewSSEMCPClient(config.Host)
+	sseMCPClient, err := mcpClient.NewSSEMCPClient(config.Host + "/sse")
 	if err != nil {
 		return nil, err
 	}
