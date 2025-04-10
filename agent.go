@@ -170,25 +170,25 @@ func (a *Agent) toolPrompt() string {
 When answering questions, if you need to call external tools or resources, please return the function call in JSON format embedded within your response. The JSON should follow this structure:
 <tool>{
   "function": "function_name",
-  "parameters": {
-    "argument1": "value1",
-    "argument2": "value2"
+  "context": {
+    "parameter1": "value1",
+    "parameter2": "value2"
   },
   "abort_on_error": true
 }
 </tool>
-The value of parameter might be JSON object or other data structure according to the payload definition of specific tool.
+The value of context might be JSON object or other data structure according to the payload definition of specific function.
 For example, if you need to call a 'search' function to look up information about the weather in New York, you should include this JSON in your response:
 <tool>
 {
   "function": "search",
-  "parameters": {
+  "context": {
     "query\": "weather in New York"
   },
   "abort_on_error": true
 }
 </tool>
-Here is a list of supported functions you can call when needed:
+Here is a list of supported functions (might also be called as skill or tool) you can call when needed:
 %s
 `, allFunctionPrompt)
 }
@@ -382,7 +382,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		return err
 	}
 	for _, functionCall := range functionCallList {
-		if err := ad.Agent.Command(ctx, functionCall.Function, functionCall.Parameters, func(output any) (any, error) {
+		if err := ad.Agent.Command(ctx, functionCall.Function, functionCall.Context, func(output any) (any, error) {
 			resultOfFunCall := fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output)
 			ad.AddSystemMemory(resultOfFunCall, nil)
 			callback(resultOfFunCall)

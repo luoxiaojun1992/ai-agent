@@ -19,7 +19,7 @@ The "team" skill represents a collaborative group of AI agents, each with specia
 1. Team Members
 %s
 Each member is designed to contribute unique expertise to the team's collective intelligence.
-2. Invocation Parameters
+2. Invocation Context
 To activate the "team" skill, use the following JSON format:
 {
   "member": "[specific member name]",

@@ -7,9 +7,9 @@ import (
 )
 
 type FunctionCall struct {
-	Function     string                 `json:"function"`
-	Parameters   map[string]interface{} `json:"parameters"`
-	AbortOnError bool                   `json:"abort_on_error"`
+	Function     string `json:"function"`
+	Context      any    `json:"context"`
+	AbortOnError bool   `json:"abort_on_error"`
 }
 
 func ParseFunctionCalling(prompt string) ([]*FunctionCall, error) {
