@@ -420,21 +420,12 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 
 func (ad *AgentDouble) ListenAndWatch(ctx context.Context, message string, images []string, callback func(response string) error) error {
 	//Search context
-	embeddingResponse, err := ad.Agent.ollamaCli.EmbeddingPrompt(&ollama.EmbedRequest{
-		Model: ad.config.EmbeddingModel,
-		Input: message,
-	})
+	ctxVectors, err := ad.Recall(ctx, message)
 	if err != nil {
 		return err
 	}
-	if len(embeddingResponse.Embeddings) > 0 && len(embeddingResponse.Embeddings[0]) > 0 {
-		ctxVectors, err := ad.Agent.milvusCli.SearchVector(ctx, ad.config.MilvusCollection, embeddingResponse.Embeddings[0])
-		if err != nil {
-			return err
-		}
-		if len(ctxVectors) > 0 {
-			ad.AddSystemMemory("Context: \n"+strings.Join(ctxVectors, "\n"), nil)
-		}
+	if len(ctxVectors) > 0 {
+		ad.AddSystemMemory("Context: \n"+strings.Join(ctxVectors, "\n"), nil)
 	}
 
 	//Generate response
@@ -470,6 +461,26 @@ func (ad *AgentDouble) Remember(ctx context.Context, info string) error {
 		return ad.Agent.milvusCli.InsertVector(ctx, ad.config.MilvusCollection, info, embeddingResponse.Embeddings[0])
 	}
 	return nil
+}
+
+func (ad *AgentDouble) Recall(ctx context.Context, prompt string) ([]string, error) {
+	embeddingResponse, err := ad.Agent.ollamaCli.EmbeddingPrompt(&ollama.EmbedRequest{
+		Model: ad.config.EmbeddingModel,
+		Input: prompt,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(embeddingResponse.Embeddings) > 0 && len(embeddingResponse.Embeddings[0]) > 0 {
+		ctxVectors, err := ad.Agent.milvusCli.SearchVector(ctx, ad.config.MilvusCollection, embeddingResponse.Embeddings[0])
+		if err != nil {
+			return nil, err
+		}
+		if len(ctxVectors) > 0 {
+			return ctxVectors, nil
+		}
+	}
+	return nil, nil
 }
 
 func (ad *AgentDouble) Forget(number int) *AgentDouble {
