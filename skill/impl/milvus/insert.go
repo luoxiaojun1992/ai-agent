@@ -7,12 +7,11 @@ import (
 )
 
 type Insert struct {
-	MilvusCli      milvusPKG.IClient
-	CollectionName string
+	MilvusCli milvusPKG.IClient
 }
 
 func (i *Insert) GetDescription() string {
-	//todo
+	//todo CollectionName
 	return ""
 }
 

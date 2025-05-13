@@ -349,6 +349,7 @@ func (ad *AgentDouble) AddUserMemory(content string, images []string) *AgentDoub
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
+	//todo add prompt for milvus collection name for milvus skill
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
 	return ad.AddSystemMemory(personalInfoPrompt, nil).
 		AddSystemMemory(ad.Agent.toolPrompt(), nil).

@@ -7,12 +7,11 @@ import (
 )
 
 type Search struct {
-	MilvusCli      milvusPKG.IClient
-	CollectionName string
+	MilvusCli milvusPKG.IClient
 }
 
 func (s *Search) GetDescription() string {
-	//todo
+	//todo CollectionName
 	return ""
 }
 
