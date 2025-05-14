@@ -323,6 +323,10 @@ func NewAgentDouble(ctx context.Context, optionFuncs ...func(option *AgentDouble
 	}, nil
 }
 
+func (ad *AgentDouble) milvusPrompt() string {
+	return fmt.Sprintf("The Milvus collection currently in use by the agent is: [%s].", ad.config.MilvusCollection)
+}
+
 func (ad *AgentDouble) loopPrompt() string {
 	return "Determine if the conversation should continue. If not, include <loop_end/> in your response."
 }
@@ -349,9 +353,9 @@ func (ad *AgentDouble) AddUserMemory(content string, images []string) *AgentDoub
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
-	//todo add prompt for milvus collection name for milvus skill
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
 	return ad.AddSystemMemory(personalInfoPrompt, nil).
+		AddSystemMemory(ad.milvusPrompt(), nil).
 		AddSystemMemory(ad.Agent.toolPrompt(), nil).
 		AddSystemMemory(ad.loopPrompt(), nil)
 }
@@ -362,6 +366,9 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		memCtx.Epoch++
 		ollamaMessages = append(ollamaMessages, memCtx.toOllamaMessage())
 	}
+
+	//todo select chat model
+
 	responseContentStr, err := ad.Agent.talkToOllama(ad.config.ChatModel, ollamaMessages, callback)
 	if err != nil {
 		return err
