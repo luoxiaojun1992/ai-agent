@@ -54,7 +54,7 @@ func (pi *personalInfo) setCharacter(character string) *personalInfo {
 	return pi
 }
 
-func (pi *personalInfo) SetRole(role string) *personalInfo {
+func (pi *personalInfo) setRole(role string) *personalInfo {
 	pi.role = role
 	return pi
 }
@@ -151,7 +151,7 @@ func (a *Agent) SetCharacter(character string) *Agent {
 }
 
 func (a *Agent) SetRole(role string) *Agent {
-	a.personalInfo.SetRole(role)
+	a.personalInfo.setRole(role)
 	return a
 }
 
@@ -270,6 +270,9 @@ func NewMemory() *Memory {
 type AgentDoubleOption struct {
 	config     *Config
 	agent      *Agent
+	character  string
+	role       string
+	skillSet   map[string]skill.Skill
 	checkpoint Checkpoint
 }
 
@@ -283,6 +286,21 @@ func (ado *AgentDoubleOption) SetAgent(agent *Agent) *AgentDoubleOption {
 	return ado
 }
 
+func (ado *AgentDoubleOption) SetCharacter(character string) *AgentDoubleOption {
+	ado.character = character
+	return ado
+}
+
+func (ado *AgentDoubleOption) SetRole(role string) *AgentDoubleOption {
+	ado.role = role
+	return ado
+}
+
+func (ado *AgentDoubleOption) AddSkill(name string, processor skill.Skill) *AgentDoubleOption {
+	ado.skillSet[name] = processor
+	return ado
+}
+
 func (ado *AgentDoubleOption) SetCheckpoint(checkpoint Checkpoint) *AgentDoubleOption {
 	ado.checkpoint = checkpoint
 	return ado
@@ -291,13 +309,17 @@ func (ado *AgentDoubleOption) SetCheckpoint(checkpoint Checkpoint) *AgentDoubleO
 type AgentDouble struct {
 	config *Config
 
-	Agent      *Agent
-	memory     *Memory
-	checkpoint Checkpoint
+	Agent        *Agent
+	personalInfo *personalInfo
+	skillSet     map[string]skill.Skill
+	memory       *Memory
+	checkpoint   Checkpoint
 }
 
 func NewAgentDouble(ctx context.Context, optionFuncs ...func(option *AgentDoubleOption)) (*AgentDouble, error) {
-	doubleOption := &AgentDoubleOption{}
+	doubleOption := &AgentDoubleOption{
+		skillSet: make(map[string]skill.Skill),
+	}
 	for _, optionFunc := range optionFuncs {
 		optionFunc(doubleOption)
 	}
@@ -315,8 +337,13 @@ func NewAgentDouble(ctx context.Context, optionFuncs ...func(option *AgentDouble
 	}
 
 	return &AgentDouble{
-		config:     doubleOption.config,
-		Agent:      doubleOption.agent,
+		config: doubleOption.config,
+		Agent:  doubleOption.agent,
+		personalInfo: &personalInfo{
+			character: doubleOption.character,
+			role:      doubleOption.role,
+		},
+		skillSet:   doubleOption.skillSet,
 		memory:     NewMemory(),
 		checkpoint: doubleOption.checkpoint,
 	}, nil
@@ -328,6 +355,21 @@ func (ad *AgentDouble) milvusPrompt() string {
 
 func (ad *AgentDouble) loopPrompt() string {
 	return "Determine if the conversation should continue. If not, include <loop_end/> in your response."
+}
+
+func (ad *AgentDouble) SetCharacter(character string) *AgentDouble {
+	ad.personalInfo.setCharacter(character)
+	return ad
+}
+
+func (ad *AgentDouble) SetRole(role string) *AgentDouble {
+	ad.personalInfo.setRole(role)
+	return ad
+}
+
+func (ad *AgentDouble) LearnSkill(name string, processor skill.Skill) *AgentDouble {
+	ad.skillSet[name] = processor
+	return ad
 }
 
 func (ad *AgentDouble) AddMemory(role, content string, images []string) *AgentDouble {
@@ -352,7 +394,7 @@ func (ad *AgentDouble) AddUserMemory(content string, images []string) *AgentDoub
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
-	//todo move personal info to double level
+	//todo add ollama model prompt, high level tool prompt, high level personal info prompt
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
 	return ad.AddSystemMemory(personalInfoPrompt, nil).
 		AddSystemMemory(ad.milvusPrompt(), nil).
