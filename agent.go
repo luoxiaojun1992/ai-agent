@@ -99,7 +99,6 @@ func (ao *AgentOption) AddSkill(name string, processor skill.Skill) *AgentOption
 }
 
 type Agent struct {
-	//todo search engine client
 	config *Config
 
 	personalInfo *personalInfo
@@ -353,6 +352,7 @@ func (ad *AgentDouble) AddUserMemory(content string, images []string) *AgentDoub
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
+	//todo move personal info to double level
 	personalInfoPrompt := ad.Agent.personalInfo.prompt()
 	return ad.AddSystemMemory(personalInfoPrompt, nil).
 		AddSystemMemory(ad.milvusPrompt(), nil).
@@ -417,6 +417,8 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 			return err
 		}
 	}
+
+	//todo forget or remember memory due to the length limit of context
 
 	if ad.config.AgentMode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {
 		time.Sleep(ad.config.AgentLoopDuration)

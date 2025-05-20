@@ -15,7 +15,7 @@ func (r *Remover) GetDescription() string {
 	return ""
 }
 
-func (r *Remover) Do(_ context.Context, cmdCtx any, callback func(output any) (any, error)) error {
+func (r *Remover) Do(_ context.Context, cmdCtx any, _ func(output any) (any, error)) error {
 	params, isValidParams := cmdCtx.(map[string]any)
 	if !isValidParams {
 		return errors.New("error converting params for filesystem/file/remover skill")

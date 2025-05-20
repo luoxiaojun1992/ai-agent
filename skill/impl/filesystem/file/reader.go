@@ -32,9 +32,8 @@ func (r *Reader) Do(_ context.Context, cmdCtx any, callback func(output any) (an
 
 	content, err := os.ReadFile(pathStr)
 	if err != nil {
-		if _, errCallback := callback(content); errCallback != nil {
-			return errCallback
-		}
+		return err
 	}
+	_, err = callback(content)
 	return err
 }

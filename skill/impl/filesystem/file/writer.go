@@ -15,7 +15,7 @@ func (w *Writer) GetDescription() string {
 	return ""
 }
 
-func (w *Writer) Do(_ context.Context, cmdCtx any, callback func(output any) (any, error)) error {
+func (w *Writer) Do(_ context.Context, cmdCtx any, _ func(output any) (any, error)) error {
 	params, isValidParams := cmdCtx.(map[string]any)
 	if !isValidParams {
 		return errors.New("error converting params for filesystem/file/writer skill")

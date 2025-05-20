@@ -16,10 +16,10 @@ func (i *Insert) GetDescription() string {
 	return ""
 }
 
-func (i *Insert) Do(ctx context.Context, cmdCtx any, callback func(output any) (any, error)) error {
+func (i *Insert) Do(ctx context.Context, cmdCtx any, _ func(output any) (any, error)) error {
 	params, isValidParams := cmdCtx.(map[string]any)
 	if !isValidParams {
-		return errors.New("error converting params for filesystem/file/reader skill")
+		return errors.New("error converting params for milvus/insert skill")
 	}
 
 	collection, hasCollection := params["collection"]
