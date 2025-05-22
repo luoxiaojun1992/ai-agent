@@ -3,12 +3,15 @@ package impl
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/url"
 
 	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
 )
 
 type Http struct {
-	Client *httpPKG.Client
+	Client         *httpPKG.Client
+	AllowedURLList []string //todo
 }
 
 func (h *Http) GetDescription() string {
@@ -17,7 +20,6 @@ func (h *Http) GetDescription() string {
 }
 
 func (h *Http) Do(ctx context.Context, cmdCtx any, callback func(output any) (any, error)) error {
-	//todo
 	params, isValidParams := cmdCtx.(map[string]any)
 	if !isValidParams {
 		return errors.New("error converting params for http skill")
@@ -50,8 +52,25 @@ func (h *Http) Do(ctx context.Context, cmdCtx any, callback func(output any) (an
 		return errors.New("error converting body from params")
 	}
 
-	//todo parse params
-	res, err := h.Client.SendRequest(methodStr, pathStr, bodyStr, nil, nil)
+	queryParams, hasQueryParams := params["query_params"]
+	if !hasQueryParams {
+		return errors.New("not found query_params from params")
+	}
+	queryParamsMap, isValidQueryParams := queryParams.(url.Values)
+	if !isValidQueryParams {
+		return errors.New("error converting query_params from params")
+	}
+
+	httpHeader, hasHttpHeader := params["http_header"]
+	if !hasHttpHeader {
+		return errors.New("not found http_header from params")
+	}
+	httpHeaderMap, isValidHttpHeader := httpHeader.(http.Header)
+	if !isValidHttpHeader {
+		return errors.New("error converting http_header from params")
+	}
+
+	res, err := h.Client.SendRequest(methodStr, pathStr, bodyStr, queryParamsMap, httpHeaderMap)
 	if err != nil {
 		return err
 	}
