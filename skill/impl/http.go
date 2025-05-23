@@ -5,16 +5,22 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 
 	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
 )
 
 type Http struct {
 	Client         *httpPKG.Client
-	AllowedURLList []string //todo
+	AllowedURLList []string
 }
 
 func (h *Http) GetDescription() string {
+	//todo
+	return ""
+}
+
+func (h *Http) ShortDescription() string {
 	//todo
 	return ""
 }
@@ -41,6 +47,9 @@ func (h *Http) Do(ctx context.Context, cmdCtx any, callback func(output any) (an
 	pathStr, isValidPath := path.(string)
 	if !isValidPath {
 		return errors.New("error converting path from params")
+	}
+	if len(h.AllowedURLList) > 0 && slices.Contains(h.AllowedURLList, pathStr) {
+		return errors.New("path is not allowed")
 	}
 
 	body, hasBody := params["body"]
