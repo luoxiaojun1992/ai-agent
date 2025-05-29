@@ -28,6 +28,8 @@ type Config struct {
 	MilvusHost       string
 	MilvusCollection string
 
+	ChatModelContextLimit int
+
 	AgentMode         AgentMode
 	AgentLoopDuration time.Duration
 }
@@ -460,6 +462,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		}
 	}
 
+	//todo limit config
 	//todo forget or remember memory due to the length limit of context
 
 	if ad.config.AgentMode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {
