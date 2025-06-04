@@ -269,6 +269,8 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
+//todo calculate context length
+
 type AgentDoubleOption struct {
 	config     *Config
 	agent      *Agent
@@ -351,12 +353,28 @@ func NewAgentDouble(ctx context.Context, optionFuncs ...func(option *AgentDouble
 	}, nil
 }
 
+func (ad *AgentDouble) embeddingModelPrompt() string {
+	return fmt.Sprintf("The embedding model currently in use by the agent is: [%s].", ad.config.EmbeddingModel)
+}
+
 func (ad *AgentDouble) milvusPrompt() string {
 	return fmt.Sprintf("The Milvus collection currently in use by the agent is: [%s].", ad.config.MilvusCollection)
 }
 
 func (ad *AgentDouble) loopPrompt() string {
 	return "Determine if the conversation should continue. If not, include <loop_end/> in your response."
+}
+
+func (ad *AgentDouble) toolPrompt() string {
+	functionPromptList := make([]string, 0, len(ad.skillSet))
+	for skillName, skill := range ad.skillSet {
+		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, skill.GetDescription()))
+	}
+	allFunctionPrompt := strings.Join(functionPromptList, "\n\n")
+	return fmt.Sprintf(`
+Here is a list of supported high priority functions (might also be called as skill or tool) you can call when needed:
+%s
+`, allFunctionPrompt)
 }
 
 func (ad *AgentDouble) SetCharacter(character string) *AgentDouble {
@@ -369,9 +387,21 @@ func (ad *AgentDouble) SetRole(role string) *AgentDouble {
 	return ad
 }
 
+func (ad *AgentDouble) GetDescription() string {
+	return ad.Agent.GetDescription() + "\n" + ad.personalInfo.prompt()
+}
+
 func (ad *AgentDouble) LearnSkill(name string, processor skill.Skill) *AgentDouble {
 	ad.skillSet[name] = processor
 	return ad
+}
+
+func (ad *AgentDouble) Command(ctx context.Context, skillName string, cmdCtx any, callback func(output any) (any, error)) error {
+	processor, existed := ad.skillSet[skillName]
+	if !existed {
+		return fmt.Errorf("high level skill [%s] hasn't been learned", skillName)
+	}
+	return processor.Do(ctx, cmdCtx, callback)
 }
 
 func (ad *AgentDouble) AddMemory(role, content string, images []string) *AgentDouble {
@@ -396,11 +426,12 @@ func (ad *AgentDouble) AddUserMemory(content string, images []string) *AgentDoub
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
-	//todo add ollama model prompt, high level tool prompt, high level personal info prompt
-	personalInfoPrompt := ad.Agent.personalInfo.prompt()
-	return ad.AddSystemMemory(personalInfoPrompt, nil).
+	return ad.AddSystemMemory(ad.Agent.personalInfo.prompt(), nil).
+		AddSystemMemory(ad.personalInfo.prompt(), nil).
+		AddSystemMemory(ad.embeddingModelPrompt(), nil).
 		AddSystemMemory(ad.milvusPrompt(), nil).
 		AddSystemMemory(ad.Agent.toolPrompt(), nil).
+		AddSystemMemory(ad.toolPrompt(), nil).
 		AddSystemMemory(ad.loopPrompt(), nil)
 }
 
@@ -434,14 +465,21 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		return err
 	}
 	for _, functionCall := range functionCallList {
-		if err := ad.Agent.Command(ctx, functionCall.Function, functionCall.Context, func(output any) (any, error) {
+		funcCallback := func(output any) (any, error) {
 			resultOfFunCall := fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output)
 			ad.AddSystemMemory(resultOfFunCall, nil)
 			callback(resultOfFunCall)
 			return nil, nil
-		}); err != nil {
+		}
+		var cmdErr error
+		if _, existedHighCmd := ad.skillSet[functionCall.Function]; existedHighCmd {
+			cmdErr = ad.Command(ctx, functionCall.Function, functionCall.Context, funcCallback)
+		} else if _, existedCmd := ad.Agent.skillSet[functionCall.Function]; existedCmd {
+			cmdErr = ad.Agent.Command(ctx, functionCall.Function, functionCall.Context, funcCallback)
+		}
+		if cmdErr != nil {
 			errorOfFuncCall := fmt.Sprintf("The error [%s] happened during executing the function [%s].",
-				err.Error(),
+				cmdErr.Error(),
 				functionCall.Function)
 			ad.AddSystemMemory(errorOfFuncCall, nil)
 			callback(errorOfFuncCall)
@@ -462,7 +500,6 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		}
 	}
 
-	//todo limit config
 	//todo forget or remember memory due to the length limit of context
 
 	if ad.config.AgentMode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {

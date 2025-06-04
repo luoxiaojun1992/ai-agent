@@ -32,7 +32,7 @@ This description provides clear guidance on the team's composition and how to in
 `
 	memberDescriptionList := make([]string, 0, len(t.Members))
 	for _, member := range t.Members {
-		memberDescriptionList = append(memberDescriptionList, member.Agent.GetDescription())
+		memberDescriptionList = append(memberDescriptionList, member.GetDescription())
 	}
 	allMemberDescription := strings.Join(memberDescriptionList, "\n\n")
 	return fmt.Sprintf(description, allMemberDescription)
