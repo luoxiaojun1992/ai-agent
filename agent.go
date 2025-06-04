@@ -269,6 +269,14 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
+func (m *Memory) getContextLength() int {
+	var length int
+	for _, context := range m.Contexts {
+		length += len(context.Content)
+	}
+	return length
+}
+
 //todo calculate context length
 
 type AgentDoubleOption struct {
@@ -500,8 +508,12 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		}
 	}
 
-	//todo forget or remember memory due to the length limit of context
+	//Forget memory due to the length limit of context
+	if ad.memory.getContextLength() > ad.config.ChatModelContextLimit {
+		ad.Forget(-1)
+	}
 
+	//todo stack overflow
 	if ad.config.AgentMode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {
 		time.Sleep(ad.config.AgentLoopDuration)
 		return ad.talkToOllamaWithMemory(ctx, callback)
