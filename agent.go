@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
+	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
 	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
 	"github.com/luoxiaojun1992/ai-agent/pkg/ollama"
 	"github.com/luoxiaojun1992/ai-agent/skill"
@@ -21,12 +23,18 @@ const (
 )
 
 type Config struct {
-	ChatModel        string
-	EmbeddingModel   string
-	SupervisorModel  string
-	OllamaHost       string
+	ChatModel       string
+	EmbeddingModel  string
+	SupervisorModel string
+
+	OllamaHost string
+
 	MilvusHost       string
 	MilvusCollection string
+
+	HttpTimeout        time.Duration
+	HttpAllowRedirects bool
+	HttpMaxRedirects   int
 
 	ChatModelContextLimit int
 
@@ -65,6 +73,7 @@ type AgentOption struct {
 	config    *Config
 	ollamaCli ollama.IClient
 	milvusCli milvus.IClient
+	httpCli   httpPKG.IClient
 	character string
 	role      string
 	skillSet  map[string]skill.Skill
@@ -82,6 +91,11 @@ func (ao *AgentOption) SetOllamaCli(ollamaCli ollama.IClient) *AgentOption {
 
 func (ao *AgentOption) SetMilvusCli(milvusCli milvus.IClient) *AgentOption {
 	ao.milvusCli = milvusCli
+	return ao
+}
+
+func (ao *AgentOption) SetHttpCli(httpCli httpPKG.IClient) *AgentOption {
+	ao.httpCli = httpCli
 	return ao
 }
 
@@ -108,6 +122,7 @@ type Agent struct {
 
 	ollamaCli ollama.IClient
 	milvusCli milvus.IClient
+	httpCli   httpPKG.IClient
 }
 
 func NewAgent(ctx context.Context, optionFuncs ...func(option *AgentOption)) (*Agent, error) {
@@ -134,6 +149,10 @@ func NewAgent(ctx context.Context, optionFuncs ...func(option *AgentOption)) (*A
 		}
 		option.SetMilvusCli(milvusCli)
 	}
+	if option.httpCli == nil {
+		httpCli := httpPKG.NewHTTPClient(option.config.HttpTimeout, option.config.HttpAllowRedirects, option.config.HttpMaxRedirects)
+		option.SetHttpCli(httpCli)
+	}
 
 	return &Agent{
 		config: option.config,
@@ -144,6 +163,7 @@ func NewAgent(ctx context.Context, optionFuncs ...func(option *AgentOption)) (*A
 		skillSet:  option.skillSet,
 		ollamaCli: option.ollamaCli,
 		milvusCli: option.milvusCli,
+		httpCli:   option.httpCli,
 	}, nil
 }
 
@@ -549,7 +569,16 @@ func (ad *AgentDouble) Learn(info string) *AgentDouble {
 }
 
 func (ad *AgentDouble) Read(url string) error {
-	//todo
+	resp, err := ad.Agent.httpCli.Get(url, nil, nil)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("bad http code while reading in agent double")
+	}
+	if len(resp.Body) > 0 {
+		ad.AddSystemMemory(string(resp.Body), nil)
+	}
 	return nil
 }
 

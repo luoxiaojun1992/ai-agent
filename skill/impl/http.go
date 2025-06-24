@@ -11,7 +11,7 @@ import (
 )
 
 type Http struct {
-	Client         *httpPKG.Client
+	Client         httpPKG.IClient
 	AllowedURLList []string
 }
 

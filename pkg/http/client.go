@@ -16,6 +16,16 @@ const (
 	ContentTypeJson   = "application/json"
 )
 
+type IClient interface {
+	SetBaseURL(baseURL string)
+	AddDefaultHeader(key, value string)
+	Get(path string, queryParams url.Values, headers http.Header) (*Response, error)
+	Post(path string, body any, queryParams url.Values, headers http.Header) (*Response, error)
+	Patch(path string, body any, queryParams url.Values, headers http.Header) (*Response, error)
+	Delete(path string, body any, queryParams url.Values, headers http.Header) (*Response, error)
+	SendRequest(method, path string, body any, queryParams url.Values, headers http.Header) (*Response, error)
+}
+
 type Response struct {
 	StatusCode int
 	Body       []byte
@@ -100,7 +110,9 @@ func (c *Client) SendRequest(method, path string, body any, queryParams url.Valu
 	}
 
 	maps.Copy(req.Header, c.defaultHeaders)
-	maps.Copy(req.Header, headers)
+	if headers != nil {
+		maps.Copy(req.Header, headers)
+	}
 
 	if body != nil {
 		var bodyReader io.Reader
