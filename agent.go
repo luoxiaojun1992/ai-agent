@@ -464,79 +464,83 @@ func (ad *AgentDouble) InitMemory() *AgentDouble {
 }
 
 func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func(response string) error) error {
-	ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.Contexts))
-	for _, memCtx := range ad.memory.Contexts {
-		memCtx.Epoch++
-		ollamaMessages = append(ollamaMessages, memCtx.toOllamaMessage())
-	}
-
-	//todo select chat model
-
-	responseContentStr, err := ad.Agent.talkToOllama(ad.config.ChatModel, ollamaMessages, callback)
-	if err != nil {
-		return err
-	}
-
-	//todo test if output only contains true or false
-	isCompliant, err := ad.Agent.reviewResponse(responseContentStr)
-	if err != nil {
-		return err
-	}
-	if !isCompliant {
-		return errors.New("response from model is non-compliant")
-	}
-
-	ad.AddAssistantMemory(responseContentStr, nil)
-
-	functionCallList, err := prompt.ParseFunctionCalling(responseContentStr)
-	if err != nil {
-		return err
-	}
-	for _, functionCall := range functionCallList {
-		funcCallback := func(output any) (any, error) {
-			resultOfFunCall := fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output)
-			ad.AddSystemMemory(resultOfFunCall, nil)
-			callback(resultOfFunCall)
-			return nil, nil
-		}
-		var cmdErr error
-		if _, existedHighCmd := ad.skillSet[functionCall.Function]; existedHighCmd {
-			cmdErr = ad.Command(ctx, functionCall.Function, functionCall.Context, funcCallback)
-		} else if _, existedCmd := ad.Agent.skillSet[functionCall.Function]; existedCmd {
-			cmdErr = ad.Agent.Command(ctx, functionCall.Function, functionCall.Context, funcCallback)
-		}
-		if cmdErr != nil {
-			errorOfFuncCall := fmt.Sprintf("The error [%s] happened during executing the function [%s].",
-				cmdErr.Error(),
-				functionCall.Function)
-			ad.AddSystemMemory(errorOfFuncCall, nil)
-			callback(errorOfFuncCall)
-			if functionCall.AbortOnError {
-				break
-			}
-			continue
+	for {
+		ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.Contexts))
+		for _, memCtx := range ad.memory.Contexts {
+			memCtx.Epoch++
+			ollamaMessages = append(ollamaMessages, memCtx.toOllamaMessage())
 		}
 
-		successOfFuncCall := fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function)
-		ad.AddSystemMemory(successOfFuncCall, nil)
-		callback(successOfFuncCall)
-	}
+		//todo select chat model
 
-	if ad.checkpoint != nil {
-		if err := ad.checkpoint.Do(ad); err != nil {
+		responseContentStr, err := ad.Agent.talkToOllama(ad.config.ChatModel, ollamaMessages, callback)
+		if err != nil {
 			return err
 		}
-	}
 
-	//Forget memory due to the length limit of context
-	if ad.memory.getContextLength() > ad.config.ChatModelContextLimit {
-		ad.Forget(-1)
-	}
+		//todo test if output only contains true or false
+		isCompliant, err := ad.Agent.reviewResponse(responseContentStr)
+		if err != nil {
+			return err
+		}
+		if !isCompliant {
+			return errors.New("response from model is non-compliant")
+		}
 
-	//todo stack overflow
-	if ad.config.AgentMode == AgentModeLoop && !prompt.ParseLoopEnd(responseContentStr) {
+		ad.AddAssistantMemory(responseContentStr, nil)
+
+		functionCallList, err := prompt.ParseFunctionCalling(responseContentStr)
+		if err != nil {
+			return err
+		}
+		for _, functionCall := range functionCallList {
+			funcCallback := func(output any) (any, error) {
+				resultOfFunCall := fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output)
+				ad.AddSystemMemory(resultOfFunCall, nil)
+				err := callback(resultOfFunCall)
+				return nil, err
+			}
+			var cmdErr error
+			if _, existedHighCmd := ad.skillSet[functionCall.Function]; existedHighCmd {
+				cmdErr = ad.Command(ctx, functionCall.Function, functionCall.Context, funcCallback)
+			} else if _, existedCmd := ad.Agent.skillSet[functionCall.Function]; existedCmd {
+				cmdErr = ad.Agent.Command(ctx, functionCall.Function, functionCall.Context, funcCallback)
+			}
+			if cmdErr != nil {
+				errorOfFuncCall := fmt.Sprintf("The error [%s] happened during executing the function [%s].",
+					cmdErr.Error(),
+					functionCall.Function)
+				ad.AddSystemMemory(errorOfFuncCall, nil)
+				if err := callback(errorOfFuncCall); err != nil {
+					return err
+				}
+				if functionCall.AbortOnError {
+					break
+				}
+				continue
+			}
+
+			successOfFuncCall := fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function)
+			ad.AddSystemMemory(successOfFuncCall, nil)
+			callback(successOfFuncCall)
+		}
+
+		if ad.checkpoint != nil {
+			if err := ad.checkpoint.Do(ad); err != nil {
+				return err
+			}
+		}
+
+		//Forget memory due to the length limit of context
+		if ad.memory.getContextLength() > ad.config.ChatModelContextLimit {
+			ad.Forget(-1)
+		}
+
+		if ad.config.AgentMode != AgentModeLoop || prompt.ParseLoopEnd(responseContentStr) {
+			break
+		}
+
 		time.Sleep(ad.config.AgentLoopDuration)
-		return ad.talkToOllamaWithMemory(ctx, callback)
 	}
 
 	return nil
