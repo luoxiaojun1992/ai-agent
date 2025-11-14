@@ -88,25 +88,6 @@ services:
     networks:
       - ai-agent-network
 
-  # UI Test Runner
-  ui-test-runner:
-    build:
-      context: ./ui-automation
-      dockerfile: Dockerfile
-    container_name: ui-test-runner
-    environment:
-      - TEST_BASE_URL=http://ui-backend:3001
-      - TEST_FRONTEND_URL=http://frontend:80
-      - AI_AGENT_SVC_URL=http://ai-agent-svc:8080
-    depends_on:
-      - ui-backend
-      - frontend
-      - ai-agent-svc
-    networks:
-      - ai-agent-network
-    profiles:
-      - test
-
 networks:
   ai-agent-network:
     driver: bridge
