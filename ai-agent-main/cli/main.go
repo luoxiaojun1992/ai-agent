@@ -7,8 +7,8 @@ import (
 	"log"
 	"os"
 
-	ai_agent "github.com/luoxiaojun1992/ai-agent"
-	"github.com/luoxiaojun1992/ai-agent/skill/impl"
+	ai_agent "github.com/luoxiaojun1992/ai-agent/ai-agent-main"
+	"github.com/luoxiaojun1992/ai-agent/ai-agent-main/skill/impl"
 )
 
 const (

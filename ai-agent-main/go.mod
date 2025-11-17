@@ -1,4 +1,4 @@
-module github.com/luoxiaojun1992/ai-agent
+module github.com/luoxiaojun1992/ai-agent/ai-agent-main
 
 go 1.23.4
 

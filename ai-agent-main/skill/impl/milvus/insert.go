@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	milvusPKG "github.com/luoxiaojun1992/ai-agent/pkg/milvus"
+	milvusPKG "github.com/luoxiaojun1992/ai-agent/ai-agent-main/pkg/milvus"
 )
 
 type Insert struct {

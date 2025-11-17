@@ -6,7 +6,7 @@
 
 ## 🚀 Overview
 
-This is an enhanced version of the AI Agent system with comprehensive skill documentation, security improvements, modern microservices architecture, and a complete testing framework.
+This is an enhanced version of the AI Agent system with comprehensive skill documentation, security improvements, modern microservices architecture.
 
 ## ✨ New Features
 
@@ -27,12 +27,6 @@ This is an enhanced version of the AI Agent system with comprehensive skill docu
 - **Containerized Deployment**: Docker Compose orchestration
 - **Health Monitoring**: Service health checks and status endpoints
 
-### 🧪 Comprehensive Testing
-- **21 Test Cases**: Complete coverage of all functionality
-- **Automated Testing**: Jest-based testing framework
-- **Integration Tests**: End-to-end workflow validation
-- **Performance Tests**: Concurrent request handling
-
 ## 📁 Project Structure
 
 ```
@@ -42,9 +36,7 @@ This is an enhanced version of the AI Agent system with comprehensive skill docu
 ├── ui-backend/                 # Node.js UI backend service
 ├── ai-agent-svc/              # Go AI Agent microservice
 ├── frontend/                   # Web interface
-├── ui-automation/              # Testing framework
 ├── docker-compose.yml          # Complete service stack
-└── test-runner.sh             # Automated testing script
 ```
 
 ## 🚀 Quick Start
@@ -61,12 +53,6 @@ cd ai-agent
 
 # Start all services with Docker Compose
 docker-compose up -d
-
-# Wait for services to start (about 30 seconds)
-sleep 30
-
-# Run the complete test suite
-./test-runner.sh
 ```
 
 ### Access the System
@@ -76,18 +62,6 @@ sleep 30
 - **📊 Health Check**: http://localhost:3001/health
 
 ## 🧪 Testing
-
-### Run All Tests
-```bash
-cd ui-automation
-npm install
-npm test
-```
-
-### Run with Coverage
-```bash
-npm test -- --coverage
-```
 
 ### Test Categories
 - ✅ **Health & Connectivity**: Service health and CORS
@@ -202,7 +176,6 @@ DELETE /api/agent/memory   # Clear memory
 | `ai-agent-svc` | 8080 | AI Agent service |
 | `milvus` | 19530 | Vector database |
 | `ollama` | 11434 | AI models |
-| `ui-test-runner` | - | Test execution |
 
 ## 🔄 Development Workflow
 
@@ -219,19 +192,6 @@ npm run dev
 # Run AI Agent Service locally
 cd ai-agent-svc
 go run main.go
-```
-
-### Testing Changes
-```bash
-# Run specific test suite
-cd ui-automation
-npm test -- tests/skills.test.js
-
-# Run with coverage
-npm test -- --coverage
-
-# Run integration tests
-./test-runner.sh
 ```
 
 ## 📈 Monitoring
@@ -308,7 +268,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Milvus for vector database
 - Gin framework for Go web services
 - Express.js for Node.js backend
-- Jest for testing framework
 
 ---
 

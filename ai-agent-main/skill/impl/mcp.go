@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/luoxiaojun1992/ai-agent/pkg/mcp"
+	"github.com/luoxiaojun1992/ai-agent/ai-agent-main/pkg/mcp"
 )
 
 type MCP struct {

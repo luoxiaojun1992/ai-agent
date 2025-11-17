@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
-	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
-	"github.com/luoxiaojun1992/ai-agent/pkg/ollama"
-	"github.com/luoxiaojun1992/ai-agent/skill"
-	"github.com/luoxiaojun1992/ai-agent/util/prompt"
+	httpPKG "github.com/luoxiaojun1992/ai-agent/ai-agent-main/pkg/http"
+	"github.com/luoxiaojun1992/ai-agent/ai-agent-main/pkg/milvus"
+	"github.com/luoxiaojun1992/ai-agent/ai-agent-main/pkg/ollama"
+	"github.com/luoxiaojun1992/ai-agent/ai-agent-main/skill"
+	"github.com/luoxiaojun1992/ai-agent/ai-agent-main/util/prompt"
 )
 
 type AgentMode string
@@ -204,7 +204,7 @@ For example, if you need to call a 'search' function to look up information abou
 {
   "function": "search",
   "context": {
-    "query\": "weather in New York"
+    "query": "weather in New York"
   },
   "abort_on_error": true
 }
