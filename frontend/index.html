@@ -106,23 +106,6 @@
             cursor: not-allowed;
         }
         
-        .skills-container {
-            margin: 20px 0;
-        }
-        
-        .skill-item {
-            padding: 10px;
-            margin: 5px 0;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: #f8f9fa;
-        }
-        
-        .skill-name {
-            font-weight: bold;
-            color: #007bff;
-        }
-        
         .config-section {
             margin: 20px 0;
             padding: 15px;
@@ -178,12 +161,6 @@
             </div>
         </div>
         
-        <div class="skills-container">
-            <h3>Available Skills</h3>
-            <button onclick="loadSkills()">Refresh Skills</button>
-            <div id="skillsList"></div>
-        </div>
-        
         <div class="config-section">
             <h3>Agent Configuration</h3>
             <button onclick="loadConfig()">Refresh Configuration</button>
@@ -209,7 +186,6 @@
                 if (response.ok) {
                     updateStatus('Services connected successfully', 'success');
                     enableInterface();
-                    loadSkills();
                     loadConfig();
                 } else {
                     updateStatus('Failed to connect to services', 'error');
@@ -285,28 +261,6 @@
             } else {
                 button.textContent = 'Send';
                 button.disabled = false;
-            }
-        }
-        
-        async function loadSkills() {
-            try {
-                const response = await fetch(`${API_BASE}/agent/skills`);
-                const data = await response.json();
-                
-                const skillsList = document.getElementById('skillsList');
-                skillsList.innerHTML = '';
-                
-                data.skills.forEach(skill => {
-                    const skillDiv = document.createElement('div');
-                    skillDiv.className = 'skill-item';
-                    skillDiv.innerHTML = `
-                        <div class="skill-name">${skill.name}</div>
-                        <div>${skill.description}</div>
-                    `;
-                    skillsList.appendChild(skillDiv);
-                });
-            } catch (error) {
-                console.error('Error loading skills:', error);
             }
         }
         

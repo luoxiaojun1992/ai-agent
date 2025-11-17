@@ -52,7 +52,7 @@ git clone <repository-url>
 cd ai-agent
 
 # Start all services with Docker Compose
-docker-compose up -d
+docker-compose up --build -d
 ```
 
 ### Access the System

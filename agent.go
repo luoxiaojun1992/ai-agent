@@ -479,13 +479,14 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		}
 
 		//todo test if output only contains true or false
-		isCompliant, err := ad.Agent.reviewResponse(responseContentStr)
-		if err != nil {
-			return err
-		}
-		if !isCompliant {
-			return errors.New("response from model is non-compliant")
-		}
+		//todo add switch
+		// isCompliant, err := ad.Agent.reviewResponse(responseContentStr)
+		// if err != nil {
+		// 	return err
+		// }
+		// if !isCompliant {
+		// 	return errors.New("response from model is non-compliant")
+		// }
 
 		ad.AddAssistantMemory(responseContentStr, nil)
 

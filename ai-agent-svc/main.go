@@ -145,7 +145,6 @@ func (s *Server) statusHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status":     "running",
 		"character":  s.agent.GetDescription(),
-		"skills":     len(s.agent.SkillSet),
 		"timestamp":  time.Now().Unix(),
 	})
 }
@@ -185,6 +184,7 @@ func (s *Server) chatHandler(c *gin.Context) {
 		})
 		
 		if err != nil {
+			log.Println("Error during agent response", err)
 			errChan <- err
 		} else {
 			responseChan <- response.String()
@@ -312,6 +312,8 @@ func getEnv(key, defaultValue string) string {
 }
 
 func main() {
+	log.Println("Initializing AI Agent Service...")
+
 	server, err := NewServer()
 	if err != nil {
 		log.Fatal("Failed to create server:", err)
@@ -330,6 +332,7 @@ func main() {
 		os.Exit(0)
 	}()
 	
+	log.Println("Starting server")
 	if err := server.Start(); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

@@ -5,7 +5,7 @@
 ### Manual Deployment Steps
 ```bash
 # 1. Start all services
-docker-compose up -d
+docker-compose up --build -d
 
 # 2. Access the system
 open http://localhost:3000
