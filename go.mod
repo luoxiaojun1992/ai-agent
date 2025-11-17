@@ -1,4 +1,4 @@
-module github.com/luoxiaojun1992/ai-agent/ai-agent-main
+module github.com/luoxiaojun1992/ai-agent
 
 go 1.25
 
