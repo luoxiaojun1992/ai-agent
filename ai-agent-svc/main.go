@@ -15,9 +15,6 @@ import (
 	ai_agent "github.com/luoxiaojun1992/ai-agent"
 	file_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/file"
 	directory_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/directory"
-	http_skill "github.com/luoxiaojun1992/ai-agent/skill/impl"
-	milvus_skill "github.com/luoxiaojun1992/ai-agent/skill/impl/milvus"
-	ollama_skill "github.com/luoxiaojun1992/ai-agent/skill/impl/ollama"
 	time_skill "github.com/luoxiaojun1992/ai-agent/skill/impl/time"
 )
 
@@ -127,9 +124,6 @@ func (s *Server) setupRoutes() {
 	
 	// Execute skill
 	s.router.POST("/skill", s.skillHandler)
-	
-	// Get available skills
-	s.router.GET("/skills", s.skillsHandler)
 	
 	// Configuration
 	s.router.GET("/config", s.getConfigHandler)
@@ -255,22 +249,6 @@ func (s *Server) skillHandler(c *gin.Context) {
 	}
 }
 
-func (s *Server) skillsHandler(c *gin.Context) {
-	skills := make([]gin.H, 0)
-	
-	for name, skill := range s.agent.SkillSet {
-		skills = append(skills, gin.H{
-			"name":        name,
-			"description": skill.GetDescription(),
-		})
-	}
-	
-	c.JSON(200, gin.H{
-		"skills": skills,
-		"count":  len(skills),
-	})
-}
-
 func (s *Server) getConfigHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"chatModel":      s.config.AgentConfig.ChatModel,
@@ -321,7 +299,7 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	s.cancel()
 	if s.agent != nil {
-		return s.agent.Close()
+		return s.agent.Agent.Close()
 	}
 	return nil
 }

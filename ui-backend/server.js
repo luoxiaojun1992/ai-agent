@@ -72,17 +72,6 @@ app.post('/api/agent/skill', async (req, res) => {
   }
 });
 
-// Get available skills
-app.get('/api/agent/skills', async (req, res) => {
-  try {
-    const response = await axios.get(`${AI_AGENT_SVC_URL}/skills`);
-    res.json(response.data);
-  } catch (error) {
-    console.error('Error fetching skills:', error.message);
-    res.status(500).json({ error: 'Failed to fetch skills' });
-  }
-});
-
 // Get agent configuration
 app.get('/api/agent/config', async (req, res) => {
   try {
