@@ -1,6 +1,6 @@
 module github.com/luoxiaojun1992/ai-agent/ai-agent-main
 
-go 1.23.4
+go 1.25
 
 require (
 	github.com/mark3labs/mcp-go v0.17.0

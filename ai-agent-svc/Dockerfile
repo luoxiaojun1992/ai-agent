@@ -1,18 +1,15 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
 # Install dependencies
 RUN apk add --no-cache git
 
-# Copy go mod files
-COPY go.mod go.sum ./
-
-# Download dependencies
-RUN go mod download
-
 # Copy source code
 COPY . .
+
+# Download dependencies
+RUN go mod tidy
 
 # Build the application
 RUN go build -o ai-agent-svc main.go

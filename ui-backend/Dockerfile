@@ -2,14 +2,14 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
 # Install dependencies
-RUN npm ci --only=production
+RUN apk add --no-cache git ca-certificates
 
 # Copy application code
 COPY . .
+
+# Install dependencies
+RUN npm install
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs

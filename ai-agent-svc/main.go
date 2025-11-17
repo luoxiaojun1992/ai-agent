@@ -12,13 +12,13 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	ai_agent "github.com/luoxiaojun1992/ai-agent/ai-agent-main"
-	file_reader "github.com/luoxiaojun1992/ai-agent/ai-agent-main/skill/impl/filesystem/file"
-	directory_reader "github.com/luoxiaojun1992/ai-agent/ai-agent-main/skill/impl/filesystem/directory"
-	http_skill "github.com/luoxiaojun1992/ai-agent/ai-agent-main/skill/impl"
-	milvus_skill "github.com/luoxiaojun1992/ai-agent/ai-agent-main/skill/impl/milvus"
-	ollama_skill "github.com/luoxiaojun1992/ai-agent/ai-agent-main/skill/impl/ollama"
-	time_skill "github.com/luoxiaojun1992/ai-agent/ai-agent-main/skill/impl/time"
+	ai_agent "github.com/luoxiaojun1992/ai-agent"
+	file_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/file"
+	directory_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/directory"
+	http_skill "github.com/luoxiaojun1992/ai-agent/skill/impl"
+	milvus_skill "github.com/luoxiaojun1992/ai-agent/skill/impl/milvus"
+	ollama_skill "github.com/luoxiaojun1992/ai-agent/skill/impl/ollama"
+	time_skill "github.com/luoxiaojun1992/ai-agent/skill/impl/time"
 )
 
 type Server struct {
