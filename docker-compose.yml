@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # Infrastructure services
+  milvus:
+    image: milvusdb/milvus:latest
+    container_name: milvus
+    ports:
+      - "19530:19530"
+    volumes:
+      - ./playground/infra/milvus_data:/var/lib/milvus
+    environment:
+      - MILVUS_ENABLE_METRICS=true
+    restart: always
+    networks:
+      - ai-agent-network
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./playground/infra/ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_MODELS=deepseek-r1:1.5b,nomic-embed-text
+    restart: always
+    networks:
+      - ai-agent-network
+
+  # AI Agent Service
+  ai-agent-svc:
+    build:
+      context: ./ai-agent-svc
+      dockerfile: Dockerfile
+    container_name: ai-agent-svc
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - CORS_ORIGINS=*
+      - CHAT_MODEL=deepseek-r1:1.5b
+      - EMBEDDING_MODEL=nomic-embed-text
+      - SUPERVISOR_MODEL=deepseek-r1:1.5b
+      - OLLAMA_HOST=http://ollama:11434
+      - MILVUS_HOST=milvus:19530
+      - MILVUS_COLLECTION=ai_agent_memory
+      - AGENT_CHARACTER=You are a helpful AI assistant with access to various tools and skills
+      - AGENT_ROLE=AI Assistant and Tool User
+    depends_on:
+      - milvus
+      - ollama
+    restart: always
+    networks:
+      - ai-agent-network
+    volumes:
+      - ./tmp/agent:/tmp/agent
+
+  # UI Backend Service
+  ui-backend:
+    build:
+      context: ./ui-backend
+      dockerfile: Dockerfile
+    container_name: ui-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - CORS_ORIGIN=http://localhost:3000
+      - AI_AGENT_SVC_URL=http://ai-agent-svc:8080
+    depends_on:
+      - ai-agent-svc
+    restart: always
+    networks:
+      - ai-agent-network
+
+  # Frontend (optional - for testing)
+  frontend:
+    image: nginx:alpine
+    container_name: ai-agent-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - ui-backend
+    restart: always
+    networks:
+      - ai-agent-network
+
+networks:
+  ai-agent-network:
+    driver: bridge
+
+volumes:
+  milvus_data:
+  ollama_data:

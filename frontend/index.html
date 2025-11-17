@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent UI</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+        }
+        
+        .status.error {
+            background-color: #ffe7e7;
+            border-color: #ffb3b3;
+        }
+        
+        .status.success {
+            background-color: #e7ffe7;
+            border-color: #b3ffb3;
+        }
+        
+        .chat-container {
+            margin: 20px 0;
+        }
+        
+        .chat-messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: #fafafa;
+        }
+        
+        .message {
+            margin: 10px 0;
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+        
+        .message.user {
+            background-color: #007bff;
+            color: white;
+            text-align: right;
+            margin-left: 50px;
+        }
+        
+        .message.agent {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            margin-right: 50px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .skills-container {
+            margin: 20px 0;
+        }
+        
+        .skill-item {
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        
+        .skill-name {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .config-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .memory-section {
+            margin: 20px 0;
+        }
+        
+        .memory-item {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Agent UI</h1>
+            <p>Interactive interface for AI Agent with skill execution capabilities</p>
+        </div>
+        
+        <div id="status" class="status">
+            Connecting to services...
+        </div>
+        
+        <div class="chat-container">
+            <h3>Chat with AI Agent</h3>
+            <div id="chatMessages" class="chat-messages"></div>
+            <div class="input-group">
+                <input type="text" id="messageInput" placeholder="Enter your message..." disabled>
+                <button id="sendButton" onclick="sendMessage()" disabled>Send</button>
+            </div>
+        </div>
+        
+        <div class="skills-container">
+            <h3>Available Skills</h3>
+            <button onclick="loadSkills()">Refresh Skills</button>
+            <div id="skillsList"></div>
+        </div>
+        
+        <div class="config-section">
+            <h3>Agent Configuration</h3>
+            <button onclick="loadConfig()">Refresh Configuration</button>
+            <div id="configDisplay"></div>
+        </div>
+        
+        <div class="memory-section">
+            <h3>Memory Management</h3>
+            <button onclick="viewMemory()">View Memory</button>
+            <button onclick="clearMemory()">Clear Memory</button>
+            <div id="memoryDisplay"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api';
+        
+        let isLoading = false;
+        
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/agent/status`);
+                if (response.ok) {
+                    updateStatus('Services connected successfully', 'success');
+                    enableInterface();
+                    loadSkills();
+                    loadConfig();
+                } else {
+                    updateStatus('Failed to connect to services', 'error');
+                }
+            } catch (error) {
+                updateStatus('Error connecting to services: ' + error.message, 'error');
+            }
+        }
+        
+        function updateStatus(message, type = '') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+        }
+        
+        function enableInterface() {
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendButton').disabled = false;
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+            
+            isLoading = true;
+            updateSendButton();
+            
+            // Add user message to chat
+            addChatMessage(message, 'user');
+            input.value = '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/agent/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addChatMessage(data.response, 'agent');
+                } else {
+                    addChatMessage('Error: Failed to get response from agent', 'agent');
+                }
+            } catch (error) {
+                addChatMessage('Error: ' + error.message, 'agent');
+            } finally {
+                isLoading = false;
+                updateSendButton();
+            }
+        }
+        
+        function addChatMessage(message, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.textContent = message;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function updateSendButton() {
+            const button = document.getElementById('sendButton');
+            if (isLoading) {
+                button.innerHTML = '<span class="loading"></span>';
+                button.disabled = true;
+            } else {
+                button.textContent = 'Send';
+                button.disabled = false;
+            }
+        }
+        
+        async function loadSkills() {
+            try {
+                const response = await fetch(`${API_BASE}/agent/skills`);
+                const data = await response.json();
+                
+                const skillsList = document.getElementById('skillsList');
+                skillsList.innerHTML = '';
+                
+                data.skills.forEach(skill => {
+                    const skillDiv = document.createElement('div');
+                    skillDiv.className = 'skill-item';
+                    skillDiv.innerHTML = `
+                        <div class="skill-name">${skill.name}</div>
+                        <div>${skill.description}</div>
+                    `;
+                    skillsList.appendChild(skillDiv);
+                });
+            } catch (error) {
+                console.error('Error loading skills:', error);
+            }
+        }
+        
+        async function loadConfig() {
+            try {
+                const response = await fetch(`${API_BASE}/agent/config`);
+                const data = await response.json();
+                
+                const configDisplay = document.getElementById('configDisplay');
+                configDisplay.innerHTML = `
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                console.error('Error loading config:', error);
+            }
+        }
+        
+        async function viewMemory() {
+            try {
+                const response = await fetch(`${API_BASE}/agent/memory`);
+                const data = await response.json();
+                
+                const memoryDisplay = document.getElementById('memoryDisplay');
+                memoryDisplay.innerHTML = `
+                    <h4>Memory Contexts (${data.length})</h4>
+                    ${data.contexts.map(context => `
+                        <div class="memory-item">
+                            <strong>${context.Role}:</strong> ${context.Content.substring(0, 100)}...
+                            <br><small>Epoch: ${context.Epoch}</small>
+                        </div>
+                    `).join('')}
+                `;
+            } catch (error) {
+                console.error('Error viewing memory:', error);
+            }
+        }
+        
+        async function clearMemory() {
+            if (!confirm('Are you sure you want to clear all memory?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/agent/memory`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('Memory cleared successfully');
+                    document.getElementById('memoryDisplay').innerHTML = '';
+                }
+            } catch (error) {
+                console.error('Error clearing memory:', error);
+            }
+        }
+        
+        // Handle Enter key in message input
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkHealth();
+            
+            // Refresh status every 30 seconds
+            setInterval(checkHealth, 30000);
+        });
+    </script>
+</body>
+</html>
