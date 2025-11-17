@@ -3,7 +3,6 @@ package ollama
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	ollamaPKG "github.com/luoxiaojun1992/ai-agent/pkg/ollama"
 )

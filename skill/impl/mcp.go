@@ -49,8 +49,6 @@ func (m *MCP) Do(ctx context.Context, cmdCtx any, callback func(output any) (any
 	switch v := arguments.(type) {
 	case map[string]interface{}:
 		argumentMap = v
-	case map[string]any:
-		argumentMap = v
 	default:
 		return fmt.Errorf("error converting arguments from params: expected map[string]interface{}, got %T", arguments)
 	}
