@@ -33,6 +33,7 @@ services:
     build:
       context: ./ai-agent-svc
       dockerfile: Dockerfile
+      no-cache: true
     container_name: ai-agent-svc
     ports:
       - "8080:8080"
@@ -61,6 +62,7 @@ services:
     build:
       context: ./ui-backend
       dockerfile: Dockerfile
+      no-cache: true
     container_name: ui-backend
     ports:
       - "3001:3001"
