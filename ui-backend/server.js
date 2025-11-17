@@ -42,18 +42,73 @@ app.get('/api/agent/status', async (req, res) => {
   }
 });
 
-// Send message to agent
+// Send message to agent - supports both streaming and non-streaming modes
 app.post('/api/agent/chat', async (req, res) => {
   try {
-    const { message, agentConfig } = req.body;
-    const response = await axios.post(`${AI_AGENT_SVC_URL}/chat`, {
-      message,
-      agentConfig
-    });
-    res.json(response.data);
+    const { message, agentConfig, stream } = req.body;
+    
+    // Check if streaming is requested
+    if (stream) {
+      // Handle streaming response
+      res.header('Content-Type', 'text/event-stream');
+      res.header('Cache-Control', 'no-cache');
+      res.header('Connection', 'keep-alive');
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('X-Accel-Buffering', 'no');
+      
+      try {
+        // Forward the streaming request to AI Agent Service
+        const response = await axios.post(`${AI_AGENT_SVC_URL}/chat`, {
+          message,
+          agentConfig,
+          stream: true
+        }, {
+          responseType: 'stream',
+          headers: {
+            'Accept': 'text/event-stream'
+          }
+        });
+        
+        // Process and forward the streaming response
+        response.data.on('data', (chunk) => {
+          // Forward the raw SSE data to the client
+          res.write(chunk);
+        });
+        
+        response.data.on('end', () => {
+          res.end();
+        });
+        
+        response.data.on('error', (error) => {
+          console.error('Streaming error:', error.message);
+          if (!res.headersSent) {
+            res.status(500).json({ error: 'Streaming error occurred' });
+          } else {
+            res.write(`event: error\ndata: ${JSON.stringify({ error: 'Streaming error occurred' })}\n\n`);
+            res.end();
+          }
+        });
+        
+      } catch (error) {
+        console.error('Error initiating stream:', error.message);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to initiate stream' });
+        }
+      }
+    } else {
+      // Handle regular non-streaming response
+      const response = await axios.post(`${AI_AGENT_SVC_URL}/chat`, {
+        message,
+        agentConfig,
+        stream: false
+      });
+      res.json(response.data);
+    }
   } catch (error) {
     console.error('Error sending message to agent:', error.message);
-    res.status(500).json({ error: 'Failed to send message to agent' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to send message to agent' });
+    }
   }
 });
 
@@ -116,17 +171,8 @@ app.delete('/api/agent/memory', async (req, res) => {
   }
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
 // Start server
 app.listen(PORT, () => {
-  console.log(`UI Backend service running on port ${PORT}`);
-  console.log(`CORS enabled for origin: ${corsOptions.origin}`);
-  console.log(`AI Agent Service URL: ${AI_AGENT_SVC_URL}`);
+  console.log(`UI Backend server running on port ${PORT}`);
+  console.log(`Proxying requests to AI Agent Service at ${AI_AGENT_SVC_URL}`);
 });
-
-module.exports = app;
