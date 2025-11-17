@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	ai_agent "github.com/luoxiaojun1992/ai-agent/ai-agent-main"
+	ai_agent "github.com/luoxiaojun1992/ai-agent"
 )
 
 type Team struct {

@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"slices"
 
-	httpPKG "github.com/luoxiaojun1992/ai-agent/ai-agent-main/pkg/http"
+	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
 )
 
 type Http struct {

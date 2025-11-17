@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	ollamaPKG "github.com/luoxiaojun1992/ai-agent/ai-agent-main/pkg/ollama"
+	ollamaPKG "github.com/luoxiaojun1992/ai-agent/pkg/ollama"
 )
 
 type Embedding struct {
