@@ -348,51 +348,46 @@
                         stream: true
                     })
                 });
-                
+
                 if (!response.ok) {
                     addChatMessage('Error: Failed to initiate stream', 'agent');
                     return;
                 }
-                
+
                 // Create streaming message element
                 const messageElement = addStreamingMessage();
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                let buffer = '';
-                
+
                 currentStreamController = {
                     reader: reader,
                     cancelled: false
                 };
-                
+
                 try {
                     while (!currentStreamController.cancelled) {
                         const { done, value } = await reader.read();
                         if (done) break;
-                        
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop() || '';
-                        
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                try {
-                                    const data = JSON.parse(line.slice(6));
-                                    if (data.type === 'message' && data.data && data.data.content) {
-                                        updateStreamingMessage(messageElement, data.data.content);
-                                    } else if (data.type === 'complete') {
-                                        finalizeStreamingMessage(messageElement);
-                                        currentStreamController = null;
-                                        return;
-                                    } else if (data.type === 'error') {
-                                        finalizeStreamingMessage(messageElement, 'Error: ' + (data.data.error || 'Unknown error'));
-                                        currentStreamController = null;
-                                        return;
-                                    }
-                                } catch (e) {
-                                    console.log('Failed to parse SSE data:', line);
-                                }
+
+                        try {
+                            const event = decoder.decode(value, { stream: true });
+                            const lines = event.split('\n');
+                            const eventType = lines[0].startsWith('event:') ? lines[0].slice(6) : null;
+                            const dataStr = lines.length > 1 ? (lines[1].startsWith('data:') ? lines[1].slice(5) : null) : null;
+                            if (eventType === 'message' && dataStr) {
+                                const data = JSON.parse(dataStr);
+                                updateStreamingMessage(messageElement, data.content);
+                            } else if (eventType === 'complete') {
+                                finalizeStreamingMessage(messageElement);
+                                currentStreamController = null;
+                                return;
+                            } else if (eventType === 'error') {
+                                finalizeStreamingMessage(messageElement, 'Error: ' + (data.data.error || 'Unknown error'));
+                                currentStreamController = null;
+                                return;
                             }
+                        } catch (e) {
+                            console.log('Failed to parse SSE data:', line);
                         }
                     }
                 } catch (error) {
@@ -400,7 +395,7 @@
                 } finally {
                     currentStreamController = null;
                 }
-                
+
             } catch (error) {
                 addChatMessage('Error: ' + error.message, 'agent');
             }

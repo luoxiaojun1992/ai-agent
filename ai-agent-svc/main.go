@@ -306,6 +306,7 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 				return false
 			}
 		}
+		return true
 	})
 }
 
