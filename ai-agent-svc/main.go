@@ -185,7 +185,7 @@ func (s *Server) chatHandler(c *gin.Context) {
 		}()
 		
 		var response strings.Builder
-		err := s.agent.ListenAndWatch(s.ctx, req.Message, nil, func(resp string) error {
+		err := s.agent.ListenAndWatch(c.Request.Context(), req.Message, nil, func(resp string) error {
 			response.WriteString(resp)
 			return nil
 		})
@@ -236,7 +236,7 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 		
 		// Use a for loop to continuously process callbacks
 		// until ListenAndWatch completes
-		err := s.agent.ListenAndWatch(s.ctx, message, nil, func(resp string) error {
+		err := s.agent.ListenAndWatch(c.Request.Context(), message, nil, func(resp string) error {
 			// Send each chunk to the stream channel
 			select {
 			case streamChan <- resp:
@@ -254,55 +254,57 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 		}
 		
 		// Signal completion
+		time.Sleep(time.Second)
 		doneChan <- true
 	}()
-	
+
 	// Stream response to client
 	c.Stream(func(w io.Writer) bool {
-		select {
-		case chunk, ok := <-streamChan:
-			if !ok {
-				// Channel closed, send completion event
+		for {
+			select {
+			case chunk, ok := <-streamChan:
+				if !ok {
+					// Channel closed, send completion event
+					c.SSEvent("complete", map[string]interface{}{
+						"done":      true,
+						"timestamp": time.Now().Unix(),
+					})
+					return false
+				}
+				
+				// Send chunk as SSE event
+				c.SSEvent("message", map[string]interface{}{
+					"content":   chunk,
+					"timestamp": time.Now().Unix(),
+				})
+				
+				// Flush to ensure immediate delivery
+				c.Writer.Flush()
+				
+			case err := <-errChan:
+				// Send error event
+				c.SSEvent("error", map[string]interface{}{
+					"error":     err.Error(),
+					"timestamp": time.Now().Unix(),
+				})
+				return false
+				
+			case <-doneChan:
+				// Send completion event
 				c.SSEvent("complete", map[string]interface{}{
 					"done":      true,
 					"timestamp": time.Now().Unix(),
 				})
 				return false
+				
+			case <-time.After(60 * time.Second):
+				// Send timeout event
+				c.SSEvent("error", map[string]interface{}{
+					"error":     "Request timeout",
+					"timestamp": time.Now().Unix(),
+				})
+				return false
 			}
-			
-			// Send chunk as SSE event
-			c.SSEvent("message", map[string]interface{}{
-				"content":   chunk,
-				"timestamp": time.Now().Unix(),
-			})
-			
-			// Flush to ensure immediate delivery
-			c.Writer.Flush()
-			return true
-			
-		case err := <-errChan:
-			// Send error event
-			c.SSEvent("error", map[string]interface{}{
-				"error":     err.Error(),
-				"timestamp": time.Now().Unix(),
-			})
-			return false
-			
-		case <-doneChan:
-			// Send completion event
-			c.SSEvent("complete", map[string]interface{}{
-				"done":      true,
-				"timestamp": time.Now().Unix(),
-			})
-			return false
-			
-		case <-time.After(60 * time.Second):
-			// Send timeout event
-			c.SSEvent("error", map[string]interface{}{
-				"error":     "Request timeout",
-				"timestamp": time.Now().Unix(),
-			})
-			return false
 		}
 	})
 }
@@ -329,7 +331,7 @@ func (s *Server) skillHandler(c *gin.Context) {
 	errChan := make(chan error, 1)
 	
 	go func() {
-		err := s.agent.Command(s.ctx, req.SkillName, req.Parameters, func(output interface{}) (interface{}, error) {
+		err := s.agent.Command(c.Request.Context(), req.SkillName, req.Parameters, func(output interface{}) (interface{}, error) {
 			resultChan <- output
 			return output, nil
 		})
@@ -377,7 +379,10 @@ func (s *Server) updateConfigHandler(c *gin.Context) {
 	if embeddingModel, ok := config["embeddingModel"].(string); ok {
 		s.config.AgentConfig.EmbeddingModel = embeddingModel
 	}
-	
+	if agentMode, ok := config["agentMode"].(string); ok {
+		s.config.AgentConfig.AgentMode = agentMode
+	}
+
 	c.JSON(200, gin.H{
 		"message": "Configuration updated",
 		"config":  config,
@@ -385,16 +390,17 @@ func (s *Server) updateConfigHandler(c *gin.Context) {
 }
 
 func (s *Server) getMemoryHandler(c *gin.Context) {
+	memory := s.agent.MemorySnapshot()
 	c.JSON(200, gin.H{
-		"memory":    "Memory retrieval not implemented",
-		"timestamp": time.Now().Unix(),
+		"contexts": memory.Contexts,
+		"length":   len(memory.Contexts),
 	})
 }
 
 func (s *Server) clearMemoryHandler(c *gin.Context) {
+	s.agent.ResetMemory()
 	c.JSON(200, gin.H{
-		"message": "Memory cleared",
-		"timestamp": time.Now().Unix(),
+		"message": "Memory cleared successfully",
 	})
 }
 
@@ -427,6 +433,13 @@ func (s *Server) Start() error {
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
 	}
+
+	select {
+	case <-ctx.Done():
+		log.Println("Server shutdown successfully")
+	case <-time.After(30 * time.Second):
+		log.Println("Timed out during stopping server")
+	}
 	
 	log.Println("Server exited")
 	return nil
@@ -440,11 +453,14 @@ func getEnv(key, defaultValue string) string {
 }
 
 func main() {
+	log.Println("Initializing AI Agent Service...")
+
 	server, err := NewServer()
 	if err != nil {
 		log.Fatal("Failed to create server:", err)
 	}
 	
+	log.Println("Starting server")
 	if err := server.Start(); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}

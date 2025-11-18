@@ -171,8 +171,17 @@ app.delete('/api/agent/memory', async (req, res) => {
   }
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`UI Backend server running on port ${PORT}`);
-  console.log(`Proxying requests to AI Agent Service at ${AI_AGENT_SVC_URL}`);
+  console.log(`UI Backend service running on port ${PORT}`);
+  console.log(`CORS enabled for origin: ${corsOptions.origin}`);
+  console.log(`AI Agent Service URL: ${AI_AGENT_SVC_URL}`);
 });
+
+module.exports = app;
