@@ -380,7 +380,7 @@ func (s *Server) updateConfigHandler(c *gin.Context) {
 		s.config.AgentConfig.EmbeddingModel = embeddingModel
 	}
 	if agentMode, ok := config["agentMode"].(string); ok {
-		s.config.AgentConfig.AgentMode = agentMode
+		s.config.AgentConfig.AgentMode = ai_agent.AgentMode(agentMode)
 	}
 
 	c.JSON(200, gin.H{
