@@ -79,6 +79,7 @@
             display: flex;
             gap: 10px;
             margin-bottom: 20px;
+            align-items: center;
         }
         
         input[type="text"] {
@@ -139,6 +140,46 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        .stream-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #28a745;
+            border-radius: 50%;
+            margin-left: 5px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+        
+        .mode-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .mode-selector label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        
+        .streaming-message {
+            font-style: italic;
+            color: #6c757d;
+        }
+        
+        .message-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -148,67 +189,109 @@
             <p>Interactive interface for AI Agent with skill execution capabilities</p>
         </div>
         
-        <div id="status" class="status">
-            Connecting to services...
+        <div class="status" id="status">
+            <div class="loading"></div>
+            <span>Connecting to AI Agent...</span>
         </div>
         
         <div class="chat-container">
-            <h3>Chat with AI Agent</h3>
-            <div id="chatMessages" class="chat-messages"></div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message agent">
+                    <div class="message-content">Hello! I'm your AI Agent. How can I help you today?</div>
+                </div>
+            </div>
+            
+            <div class="mode-selector">
+                <label>
+                    <input type="radio" name="chatMode" value="blocking" checked>
+                    <span>Blocking Mode</span>
+                </label>
+                <label>
+                    <input type="radio" name="chatMode" value="streaming">
+                    <span>Streaming Mode</span>
+                    <span class="stream-indicator" style="display: none;"></span>
+                </label>
+            </div>
+            
             <div class="input-group">
-                <input type="text" id="messageInput" placeholder="Enter your message..." disabled>
-                <button id="sendButton" onclick="sendMessage()" disabled>Send</button>
+                <input type="text" id="messageInput" placeholder="Type your message here..." maxlength="1000">
+                <button id="sendButton" onclick="sendMessage()">Send</button>
+                <button onclick="clearChat()">Clear</button>
             </div>
         </div>
         
         <div class="config-section">
             <h3>Agent Configuration</h3>
-            <button onclick="loadConfig()">Refresh Configuration</button>
-            <div id="configDisplay"></div>
+            <div id="configDisplay">
+                <p>Loading configuration...</p>
+            </div>
+            <button onclick="refreshConfig()">Refresh Config</button>
         </div>
         
         <div class="memory-section">
-            <h3>Memory Management</h3>
-            <button onclick="viewMemory()">View Memory</button>
+            <h3>Memory Operations</h3>
             <button onclick="clearMemory()">Clear Memory</button>
-            <div id="memoryDisplay"></div>
+            <button onclick="refreshMemory()">Refresh Memory</button>
+            <div id="memoryDisplay">
+                <p>Memory information will appear here...</p>
+            </div>
         </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:3001/api';
-        
         let isLoading = false;
+        let currentStreamController = null;
         
-        async function checkHealth() {
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkStatus();
+            refreshConfig();
+            
+            // Handle Enter key
+            document.getElementById('messageInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !isLoading) {
+                    sendMessage();
+                }
+            });
+            
+            // Handle mode change
+            document.querySelectorAll('input[name="chatMode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const streamIndicator = document.querySelector('.stream-indicator');
+                    if (this.value === 'streaming') {
+                        streamIndicator.style.display = 'inline-block';
+                    } else {
+                        streamIndicator.style.display = 'none';
+                    }
+                });
+            });
+        });
+        
+        async function checkStatus() {
             try {
                 const response = await fetch(`${API_BASE}/agent/status`);
                 if (response.ok) {
-                    updateStatus('Services connected successfully', 'success');
-                    enableInterface();
-                    loadConfig();
+                    const data = await response.json();
+                    updateStatus('Connected to AI Agent', 'success');
                 } else {
-                    updateStatus('Failed to connect to services', 'error');
+                    updateStatus('Failed to connect to AI Agent', 'error');
                 }
             } catch (error) {
-                updateStatus('Error connecting to services: ' + error.message, 'error');
+                updateStatus('Error connecting to AI Agent: ' + error.message, 'error');
             }
         }
         
-        function updateStatus(message, type = '') {
+        function updateStatus(message, type) {
             const statusDiv = document.getElementById('status');
-            statusDiv.textContent = message;
-            statusDiv.className = 'status ' + type;
-        }
-        
-        function enableInterface() {
-            document.getElementById('messageInput').disabled = false;
-            document.getElementById('sendButton').disabled = false;
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = `<span>${message}</span>`;
         }
         
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
+            const mode = document.querySelector('input[name="chatMode"]:checked').value;
             
             if (!message || isLoading) return;
             
@@ -219,6 +302,17 @@
             addChatMessage(message, 'user');
             input.value = '';
             
+            if (mode === 'streaming') {
+                await sendStreamingMessage(message);
+            } else {
+                await sendBlockingMessage(message);
+            }
+            
+            isLoading = false;
+            updateSendButton();
+        }
+        
+        async function sendBlockingMessage(message) {
             try {
                 const response = await fetch(`${API_BASE}/agent/chat`, {
                     method: 'POST',
@@ -226,7 +320,8 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        message: message
+                        message: message,
+                        stream: false
                     })
                 });
                 
@@ -238,9 +333,76 @@
                 }
             } catch (error) {
                 addChatMessage('Error: ' + error.message, 'agent');
-            } finally {
-                isLoading = false;
-                updateSendButton();
+            }
+        }
+        
+        async function sendStreamingMessage(message) {
+            try {
+                const response = await fetch(`${API_BASE}/agent/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        stream: true
+                    })
+                });
+                
+                if (!response.ok) {
+                    addChatMessage('Error: Failed to initiate stream', 'agent');
+                    return;
+                }
+                
+                // Create streaming message element
+                const messageElement = addStreamingMessage();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                currentStreamController = {
+                    reader: reader,
+                    cancelled: false
+                };
+                
+                try {
+                    while (!currentStreamController.cancelled) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.type === 'message' && data.data && data.data.content) {
+                                        updateStreamingMessage(messageElement, data.data.content);
+                                    } else if (data.type === 'complete') {
+                                        finalizeStreamingMessage(messageElement);
+                                        currentStreamController = null;
+                                        return;
+                                    } else if (data.type === 'error') {
+                                        finalizeStreamingMessage(messageElement, 'Error: ' + (data.data.error || 'Unknown error'));
+                                        currentStreamController = null;
+                                        return;
+                                    }
+                                } catch (e) {
+                                    console.log('Failed to parse SSE data:', line);
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    finalizeStreamingMessage(messageElement, 'Stream error: ' + error.message);
+                } finally {
+                    currentStreamController = null;
+                }
+                
+            } catch (error) {
+                addChatMessage('Error: ' + error.message, 'agent');
             }
         }
         
@@ -248,59 +410,111 @@
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
-            messageDiv.textContent = message;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = message;
+            
+            messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+        
+        function addStreamingMessage() {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message agent streaming-message';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = '▋'; // Cursor indicator
+            
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return { messageDiv, contentDiv };
+        }
+        
+        function updateStreamingMessage(messageElement, content) {
+            // Append new content to existing content
+            const currentText = messageElement.contentDiv.textContent;
+            // Remove cursor indicator before appending
+            const cleanText = currentText.replace('▋', '');
+            messageElement.contentDiv.textContent = cleanText + content + '▋';
+            
+            // Scroll to bottom
+            const chatMessages = document.getElementById('chatMessages');
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
-        function updateSendButton() {
-            const button = document.getElementById('sendButton');
-            if (isLoading) {
-                button.innerHTML = '<span class="loading"></span>';
-                button.disabled = true;
+        function finalizeStreamingMessage(messageElement, finalContent = null) {
+            if (finalContent !== null) {
+                messageElement.contentDiv.textContent = finalContent;
             } else {
-                button.textContent = 'Send';
-                button.disabled = false;
+                // Remove cursor indicator
+                const currentText = messageElement.contentDiv.textContent;
+                messageElement.contentDiv.textContent = currentText.replace('▋', '');
+            }
+            
+            // Remove streaming class
+            messageElement.messageDiv.classList.remove('streaming-message');
+            
+            // Scroll to bottom
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function clearChat() {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = '<div class="message agent"><div class="message-content">Chat cleared. How can I help you?</div></div>';
+            
+            // Cancel any ongoing stream
+            if (currentStreamController) {
+                currentStreamController.cancelled = true;
+                currentStreamController = null;
             }
         }
         
-        async function loadConfig() {
+        function updateSendButton() {
+            const sendButton = document.getElementById('sendButton');
+            const input = document.getElementById('messageInput');
+            
+            if (isLoading) {
+                sendButton.disabled = true;
+                sendButton.textContent = 'Sending...';
+                input.disabled = true;
+            } else {
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+                input.disabled = false;
+            }
+        }
+        
+        async function refreshConfig() {
             try {
                 const response = await fetch(`${API_BASE}/agent/config`);
                 const data = await response.json();
                 
                 const configDisplay = document.getElementById('configDisplay');
                 configDisplay.innerHTML = `
-                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <p><strong>Chat Model:</strong> ${data.chatModel}</p>
+                    <p><strong>Embedding Model:</strong> ${data.embeddingModel}</p>
+                    <p><strong>Mode:</strong> ${data.agentMode}</p>
+                    <p><strong>Character:</strong> ${data.character}</p>
                 `;
             } catch (error) {
-                console.error('Error loading config:', error);
-            }
-        }
-        
-        async function viewMemory() {
-            try {
-                const response = await fetch(`${API_BASE}/agent/memory`);
-                const data = await response.json();
-                
-                const memoryDisplay = document.getElementById('memoryDisplay');
-                memoryDisplay.innerHTML = `
-                    <h4>Memory Contexts (${data.length})</h4>
-                    ${data.contexts.map(context => `
-                        <div class="memory-item">
-                            <strong>${context.Role}:</strong> ${context.Content.substring(0, 100)}...
-                            <br><small>Epoch: ${context.Epoch}</small>
-                        </div>
-                    `).join('')}
-                `;
-            } catch (error) {
-                console.error('Error viewing memory:', error);
+                document.getElementById('configDisplay').innerHTML = '<p>Error loading configuration</p>';
             }
         }
         
         async function clearMemory() {
-            if (!confirm('Are you sure you want to clear all memory?')) return;
-            
             try {
                 const response = await fetch(`${API_BASE}/agent/memory`, {
                     method: 'DELETE'
@@ -308,27 +522,26 @@
                 
                 if (response.ok) {
                     alert('Memory cleared successfully');
-                    document.getElementById('memoryDisplay').innerHTML = '';
+                    refreshMemory();
+                } else {
+                    alert('Failed to clear memory');
                 }
             } catch (error) {
-                console.error('Error clearing memory:', error);
+                alert('Error clearing memory: ' + error.message);
             }
         }
         
-        // Handle Enter key in message input
-        document.getElementById('messageInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
+        async function refreshMemory() {
+            try {
+                const response = await fetch(`${API_BASE}/agent/memory`);
+                const data = await response.json();
+                
+                const memoryDisplay = document.getElementById('memoryDisplay');
+                memoryDisplay.innerHTML = '<p>Memory refreshed</p>';
+            } catch (error) {
+                document.getElementById('memoryDisplay').innerHTML = '<p>Error loading memory</p>';
             }
-        });
-        
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            checkHealth();
-            
-            // Refresh status every 30 seconds
-            setInterval(checkHealth, 30000);
-        });
+        }
     </script>
 </body>
 </html>

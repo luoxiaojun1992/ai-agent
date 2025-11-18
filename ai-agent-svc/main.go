@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -74,9 +76,6 @@ func NewServer() (*Server, error) {
 			option.AddSkill("directory_writer", &directory_reader.Writer{RootDir: "/tmp/agent"})
 			option.AddSkill("directory_remover", &directory_reader.Remover{RootDir: "/tmp/agent"})
 			
-			// Add HTTP skill
-			// option.AddSkill("http", &http_skill.Http{})
-			
 			// Add time skills
 			option.AddSkill("sleep", &time_skill.Sleep{})
 		},
@@ -98,7 +97,7 @@ func NewServer() (*Server, error) {
 		AllowOrigins:     config.CORSOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
+		ExposeHeaders:    []string{"Content-Length", "X-Stream-Mode"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
@@ -150,8 +149,9 @@ func (s *Server) statusHandler(c *gin.Context) {
 }
 
 type ChatRequest struct {
-	Message    string                 `json:"message"`
+	Message     string                 `json:"message"`
 	AgentConfig map[string]interface{} `json:"agentConfig,omitempty"`
+	Stream      bool                   `json:"stream,omitempty"`
 }
 
 func (s *Server) chatHandler(c *gin.Context) {
@@ -166,6 +166,13 @@ func (s *Server) chatHandler(c *gin.Context) {
 		return
 	}
 	
+	// Check if stream mode is requested
+	if req.Stream {
+		s.handleStreamChat(c, req.Message)
+		return
+	}
+	
+	// Original blocking mode
 	// Create a channel to collect the response
 	responseChan := make(chan string, 1)
 	errChan := make(chan error, 1)
@@ -178,7 +185,7 @@ func (s *Server) chatHandler(c *gin.Context) {
 		}()
 		
 		var response strings.Builder
-		err := s.agent.ListenAndWatch(s.ctx, req.Message, nil, func(resp string) error {
+		err := s.agent.ListenAndWatch(c.Request.Context(), req.Message, nil, func(resp string) error {
 			response.WriteString(resp)
 			return nil
 		})
@@ -204,6 +211,104 @@ func (s *Server) chatHandler(c *gin.Context) {
 	}
 }
 
+func (s *Server) handleStreamChat(c *gin.Context, message string) {
+	// Set headers for SSE (Server-Sent Events)
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("X-Accel-Buffering", "no") // Disable proxy buffering
+	
+	// Create channels for streaming response
+	streamChan := make(chan string, 100)
+	errChan := make(chan error, 1)
+	doneChan := make(chan bool, 1)
+	
+	// Start goroutine to handle agent response
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				errChan <- fmt.Errorf("panic in agent response: %v", r)
+			}
+			// Close channel when done
+			close(streamChan)
+		}()
+		
+		// Use a for loop to continuously process callbacks
+		// until ListenAndWatch completes
+		err := s.agent.ListenAndWatch(c.Request.Context(), message, nil, func(resp string) error {
+			// Send each chunk to the stream channel
+			select {
+			case streamChan <- resp:
+				// Successfully sent chunk
+			case <-doneChan:
+				// Early termination requested
+				return nil
+			}
+			return nil
+		})
+		
+		if err != nil {
+			log.Println("Error during agent response", err)
+			errChan <- err
+		}
+		
+		// Signal completion
+		time.Sleep(time.Second)
+		doneChan <- true
+	}()
+
+	// Stream response to client
+	c.Stream(func(w io.Writer) bool {
+		for {
+			select {
+			case chunk, ok := <-streamChan:
+				if !ok {
+					// Channel closed, send completion event
+					c.SSEvent("complete", map[string]interface{}{
+						"done":      true,
+						"timestamp": time.Now().Unix(),
+					})
+					return false
+				}
+				
+				// Send chunk as SSE event
+				c.SSEvent("message", map[string]interface{}{
+					"content":   chunk,
+					"timestamp": time.Now().Unix(),
+				})
+				
+				// Flush to ensure immediate delivery
+				c.Writer.Flush()
+				
+			case err := <-errChan:
+				// Send error event
+				c.SSEvent("error", map[string]interface{}{
+					"error":     err.Error(),
+					"timestamp": time.Now().Unix(),
+				})
+				return false
+				
+			case <-doneChan:
+				// Send completion event
+				c.SSEvent("complete", map[string]interface{}{
+					"done":      true,
+					"timestamp": time.Now().Unix(),
+				})
+				return false
+				
+			case <-time.After(60 * time.Second):
+				// Send timeout event
+				c.SSEvent("error", map[string]interface{}{
+					"error":     "Request timeout",
+					"timestamp": time.Now().Unix(),
+				})
+				return false
+			}
+		}
+	})
+}
+
 type SkillRequest struct {
 	SkillName  string                 `json:"skillName"`
 	Parameters map[string]interface{} `json:"parameters"`
@@ -226,7 +331,7 @@ func (s *Server) skillHandler(c *gin.Context) {
 	errChan := make(chan error, 1)
 	
 	go func() {
-		err := s.agent.Command(s.ctx, req.SkillName, req.Parameters, func(output interface{}) (interface{}, error) {
+		err := s.agent.Command(c.Request.Context(), req.SkillName, req.Parameters, func(output interface{}) (interface{}, error) {
 			resultChan <- output
 			return output, nil
 		})
@@ -245,32 +350,42 @@ func (s *Server) skillHandler(c *gin.Context) {
 	case err := <-errChan:
 		c.JSON(500, gin.H{"error": err.Error()})
 	case <-time.After(30 * time.Second):
-		c.JSON(504, gin.H{"error": "Skill execution timeout"})
+		c.JSON(504, gin.H{"error": "Request timeout"})
 	}
 }
 
 func (s *Server) getConfigHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"chatModel":      s.config.AgentConfig.ChatModel,
-		"embeddingModel": s.config.AgentConfig.EmbeddingModel,
-		"ollamaHost":     s.config.AgentConfig.OllamaHost,
-		"milvusHost":     s.config.AgentConfig.MilvusHost,
-		"character":      s.config.AgentCharacter,
-		"role":           s.config.AgentRole,
+		"chatModel":       s.config.AgentConfig.ChatModel,
+		"embeddingModel":  s.config.AgentConfig.EmbeddingModel,
+		"supervisorModel": s.config.AgentConfig.SupervisorModel,
+		"agentMode":       s.config.AgentConfig.AgentMode,
+		"character":       s.config.AgentCharacter,
+		"role":            s.config.AgentRole,
 	})
 }
 
 func (s *Server) updateConfigHandler(c *gin.Context) {
-	var updates map[string]interface{}
-	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request format"})
+	var config map[string]interface{}
+	if err := c.ShouldBindJSON(&config); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid config format"})
 		return
 	}
 	
-	// Apply updates (simplified - in production, you'd validate and apply specific fields)
+	// Update configuration (simplified for demo)
+	if chatModel, ok := config["chatModel"].(string); ok {
+		s.config.AgentConfig.ChatModel = chatModel
+	}
+	if embeddingModel, ok := config["embeddingModel"].(string); ok {
+		s.config.AgentConfig.EmbeddingModel = embeddingModel
+	}
+	if agentMode, ok := config["agentMode"].(string); ok {
+		s.config.AgentConfig.AgentMode = agentMode
+	}
+
 	c.JSON(200, gin.H{
-		"message": "Configuration updated successfully",
-		"updated": updates,
+		"message": "Configuration updated",
+		"config":  config,
 	})
 }
 
@@ -292,15 +407,41 @@ func (s *Server) clearMemoryHandler(c *gin.Context) {
 func (s *Server) Start() error {
 	s.setupRoutes()
 	
-	log.Printf("Starting AI Agent Service on port %s", s.config.Port)
-	return s.router.Run(":" + s.config.Port)
-}
-
-func (s *Server) Stop() error {
-	s.cancel()
-	if s.agent != nil {
-		return s.agent.Agent.Close()
+	// Start server
+	server := &http.Server{
+		Addr:    ":" + s.config.Port,
+		Handler: s.router,
 	}
+	
+	go func() {
+		log.Printf("Server starting on port %s", s.config.Port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
+	
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+	
+	// Graceful shutdown with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		log.Println("Server shutdown successfully")
+	case <-time.After(30 * time.Second):
+		log.Println("Timed out during stopping server")
+	}
+	
+	log.Println("Server exited")
 	return nil
 }
 
@@ -318,19 +459,6 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to create server:", err)
 	}
-	
-	// Handle graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	
-	go func() {
-		<-sigChan
-		log.Println("Shutting down server...")
-		if err := server.Stop(); err != nil {
-			log.Printf("Error during shutdown: %v", err)
-		}
-		os.Exit(0)
-	}()
 	
 	log.Println("Starting server")
 	if err := server.Start(); err != nil {
