@@ -348,21 +348,23 @@
                         stream: true
                     })
                 });
-
+                
                 if (!response.ok) {
                     addChatMessage('Error: Failed to initiate stream', 'agent');
                     return;
                 }
-
+                
                 // Create streaming message element
                 const messageElement = addStreamingMessage();
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-
+                
                 currentStreamController = {
                     reader: reader,
                     cancelled: false
                 };
+                
+                let content = '';
 
                 try {
                     while (!currentStreamController.cancelled) {
@@ -372,20 +374,32 @@
                         try {
                             const event = decoder.decode(value, { stream: true });
                             const lines = event.split('\n');
-                            const eventType = lines[0].startsWith('event:') ? lines[0].slice(6) : null;
-                            const dataStr = lines.length > 1 ? (lines[1].startsWith('data:') ? lines[1].slice(5) : null) : null;
-                            if (eventType === 'message' && dataStr) {
-                                const data = JSON.parse(dataStr);
-                                updateStreamingMessage(messageElement, data.content);
-                            } else if (eventType === 'complete') {
-                                finalizeStreamingMessage(messageElement);
-                                currentStreamController = null;
-                                return;
-                            } else if (eventType === 'error') {
-                                finalizeStreamingMessage(messageElement, 'Error: ' + (data.data.error || 'Unknown error'));
-                                currentStreamController = null;
-                                return;
-                            }
+                            let eventType = null;
+                            for (i in lines) {
+                                let line = lines[i];
+                                console.log('Received line:', line);
+                                if (line.startsWith('event:')) {
+                                    eventType = line.slice(6);
+                                    continue;
+                                }
+                                if (line.startsWith('data:')) {
+                                    const dataStr = line.slice(5);
+                                    const data = JSON.parse(dataStr);
+                                    if (eventType === 'message' && dataStr) {
+                                        content += data.content;
+                                        updateStreamingMessage(messageElement, content);
+                                    } else if (eventType === 'complete') {
+                                        finalizeStreamingMessage(messageElement);
+                                        currentStreamController = null;
+                                        return;
+                                    } else if (eventType === 'error') {
+                                        finalizeStreamingMessage(messageElement, 'Error: ' + (data.error || 'Unknown error'));
+                                        currentStreamController = null;
+                                        return;
+                                    }
+                                }
+                                eventType = null;
+                            }   
                         } catch (e) {
                             console.log('Failed to parse SSE data:', line);
                         }
@@ -395,7 +409,7 @@
                 } finally {
                     currentStreamController = null;
                 }
-
+                
             } catch (error) {
                 addChatMessage('Error: ' + error.message, 'agent');
             }
@@ -438,11 +452,7 @@
         }
         
         function updateStreamingMessage(messageElement, content) {
-            // Append new content to existing content
-            const currentText = messageElement.contentDiv.textContent;
-            // Remove cursor indicator before appending
-            const cleanText = currentText.replace('▋', '');
-            messageElement.contentDiv.textContent = cleanText + content + '▋';
+            messageElement.contentDiv.textContent = content + '▋';
             
             // Scroll to bottom
             const chatMessages = document.getElementById('chatMessages');
