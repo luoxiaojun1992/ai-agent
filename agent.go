@@ -634,7 +634,7 @@ func (ad *AgentDouble) Forget(number int) *AgentDouble {
 
 	if leftMemoryLen <= 0 {
 		ad.memory.Contexts = nil
-		return nil
+		return ad
 	}
 
 	ad.memory.Contexts = ad.memory.Contexts[:leftMemoryLen]

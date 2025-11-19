@@ -53,7 +53,7 @@ func NewServer() (*Server, error) {
 			HttpTimeout:           30 * time.Second,
 			HttpAllowRedirects:    true,
 			HttpMaxRedirects:      5,
-			ChatModelContextLimit: 4096,
+			ChatModelContextLimit: 1000000,
 			AgentMode:             ai_agent.AgentModeChat,
 			AgentLoopDuration:     1 * time.Second,
 		},
