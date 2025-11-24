@@ -84,6 +84,21 @@ services:
     networks:
       - ai-agent-network
 
+  migration:
+    build:
+      context: ./migration
+      dockerfile: Dockerfile
+    container_name: ai-agent-migration
+    depends_on:
+      - milvus
+      - ollama
+    restart: "no"
+    environment:
+      - MILVUS_HOST=http://milvus:19530
+      - OLLAMA_HOST=http://ollama:11434
+    networks:
+      - ai-agent-network
+
   # AI Agent Service
   ai-agent-svc:
     build:
@@ -111,7 +126,7 @@ services:
     networks:
       - ai-agent-network
     volumes:
-      - ./tmp/agent:/tmp/agent
+      - ./playground/infra/agent_svc_data:/tmp/agent
 
   # UI Backend Service
   ui-backend:
@@ -151,5 +166,8 @@ networks:
     driver: bridge
 
 volumes:
+  etcd_data:
+  minio_data:
   milvus_data:
   ollama_data:
+  agent_svc_data:
