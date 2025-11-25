@@ -28,6 +28,7 @@ type Server struct {
 	config      *Config
 	ctx         context.Context
 	cancel      context.CancelFunc
+	mcpClient   *mcpClient.Client
 }
 
 type Config struct {
@@ -63,6 +64,14 @@ func NewServer() (*Server, error) {
 		AgentRole:      getEnv("AGENT_ROLE", "AI Assistant"),
 	}
 	
+	mcpClient, err := mcpClient.NewClient(&mcpClient.Config{
+		Host: getEnv("MCP_WEB_SEARCH_HOST", "http://mcp-web-search:3001"),
+	})
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
 	// Create agent with skills
 	agent, err := ai_agent.NewAgentDouble(ctx,
 		func(option *ai_agent.AgentDoubleOption) {
@@ -79,9 +88,6 @@ func NewServer() (*Server, error) {
 			option.AddSkill("directory_remover", &directory_reader.Remover{RootDir: "/tmp/agent"})
 			
 			// Add MCP skill
-			mcpClient := mcpClient.NewClient(&mcpClient.Config{
-				Host: getEnv("MCP_WEB_SEARCH_HOST", "http://mcp-web-search:3001"),
-			})
 			option.AddSkill("mcp", &skillSet.MCP{MCPClient: mcpClient})
 
 			// Add time skills
@@ -111,11 +117,12 @@ func NewServer() (*Server, error) {
 	}))
 	
 	return &Server{
-		agent:  agent,
-		router: router,
-		config: config,
-		ctx:    ctx,
-		cancel: cancel,
+		agent:     agent,
+		router:    router,
+		config:    config,
+		ctx:       ctx,
+		cancel:    cancel,
+		mcpClient: mcpClient,
 	}, nil
 }
 
@@ -451,6 +458,11 @@ func (s *Server) Start() error {
 	}
 	
 	log.Println("Server exited")
+
+	s.agent.Agent.Close()
+	s.mcpClient.Close()
+	s.cancel()
+
 	return nil
 }
 
