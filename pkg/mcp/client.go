@@ -44,14 +44,14 @@ func (c *Client) Close() error {
 func (c *Client) ListTools(ctx context.Context) ([]string, error) {
 	result, err := c.sseMCPClient.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	toolJsonList := make([]string, 0, len(result.Tools))
 	for _, tool := range result.Tools {
 		toolJson, err := tool.MarshalJSON()
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
 		toolJsonList = append(toolJsonList, string(toolJson))
 	}
