@@ -9,8 +9,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
-type NextCursor string
-
 type IClient interface {
 }
 
@@ -43,7 +41,7 @@ func (c *Client) Close() error {
 	return c.sseMCPClient.Close()
 }
 
-func (c *Client) ListTools(ctx context.Context) ([]string, NextCursor, error) {
+func (c *Client) ListTools(ctx context.Context) ([]string, error) {
 	result, err := c.sseMCPClient.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		return nil, "", err
@@ -57,7 +55,7 @@ func (c *Client) ListTools(ctx context.Context) ([]string, NextCursor, error) {
 		}
 		toolJsonList = append(toolJsonList, string(toolJson))
 	}
-	return toolJsonList, NextCursor(result.NextCursor), nil
+	return toolJsonList, nil
 }
 
 func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {

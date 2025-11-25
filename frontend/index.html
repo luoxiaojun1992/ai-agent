@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Agent UI</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.2.0/marked.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -387,6 +388,7 @@
                                     const data = JSON.parse(dataStr);
                                     if (eventType === 'message' && dataStr) {
                                         content += data.content;
+                                        content = marked.parse(content);
                                         updateStreamingMessage(messageElement, content);
                                     } else if (eventType === 'complete') {
                                         finalizeStreamingMessage(messageElement);

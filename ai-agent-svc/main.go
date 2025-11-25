@@ -15,8 +15,10 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	ai_agent "github.com/luoxiaojun1992/ai-agent"
-	file_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/file"
 	directory_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/directory"
+	file_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/file"
+	mcpClient "github.com/luoxiaojun1992/ai-agent/pkg/mcp"
+	skillSet "github.com/luoxiaojun1992/ai-agent/skill/impl"
 	time_skill "github.com/luoxiaojun1992/ai-agent/skill/impl/time"
 )
 
@@ -76,6 +78,12 @@ func NewServer() (*Server, error) {
 			option.AddSkill("directory_writer", &directory_reader.Writer{RootDir: "/tmp/agent"})
 			option.AddSkill("directory_remover", &directory_reader.Remover{RootDir: "/tmp/agent"})
 			
+			// Add MCP skill
+			mcpClient := mcpClient.NewClient(&mcpClient.Config{
+				Host: getEnv("MCP_WEB_SEARCH_HOST", "http://mcp-web-search:3001"),
+			})
+			option.AddSkill("mcp", &skillSet.MCP{MCPClient: mcpClient})
+
 			// Add time skills
 			option.AddSkill("sleep", &time_skill.Sleep{})
 		},

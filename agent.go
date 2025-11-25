@@ -454,13 +454,18 @@ func (ad *AgentDouble) AddUserMemory(content string, images []string) *AgentDoub
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
-	return ad.AddSystemMemory(ad.Agent.personalInfo.prompt(), nil).
+	ado := ad.AddSystemMemory(ad.Agent.personalInfo.prompt(), nil).
 		AddSystemMemory(ad.personalInfo.prompt(), nil).
 		AddSystemMemory(ad.embeddingModelPrompt(), nil).
 		AddSystemMemory(ad.milvusPrompt(), nil).
-		AddSystemMemory(ad.Agent.toolPrompt(), nil).
-		AddSystemMemory(ad.toolPrompt(), nil).
 		AddSystemMemory(ad.loopPrompt(), nil)
+	if len(ad.Agent.skillSet) > 0 {
+		ado.AddSystemMemory(ad.Agent.toolPrompt(), nil)
+	}
+	if len(ad.skillSet) > 0 {
+		ado.AddSystemMemory(ad.toolPrompt(), nil)
+	}
+	return ado
 }
 
 func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func(response string) error) error {

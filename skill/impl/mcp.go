@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/luoxiaojun1992/ai-agent/pkg/mcp"
 )
@@ -13,11 +14,23 @@ type MCP struct {
 }
 
 func (m *MCP) GetDescription() string {
-	return `Call MCP (Model Context Protocol) tools and services. This skill enables interaction with external tools and services through the MCP protocol.
-Parameters:
+	description := `Call MCP (Model Context Protocol) tools and services. This skill enables interaction with external tools and services through the MCP protocol.
+1. Tool list:
+%s
+2. Parameters:
 - name: string - The name of the MCP tool or service to call
 - arguments: map[string]interface{} - Arguments to pass to the MCP tool
-Returns: Result from the MCP tool execution`
+3. Returns: Result from the MCP tool execution`
+
+	//todo pass ctx from outside
+	//todo return err
+	ctx := context.Background()
+	toolDescList, err := m.MCPClient.ListTools(ctx)
+	if err != nil {
+		log.Fatalf("Failed to list mcp tools: %v", err)
+	}
+	toolListDescription := strings.Join(toolDescList, "\n\n")
+	return fmt.Sprintf(description, toolListDescription)
 }
 
 func (m *MCP) ShortDescription() string {
