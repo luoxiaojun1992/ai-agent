@@ -128,7 +128,7 @@ services:
       - OLLAMA_HOST=http://ollama:11434
       - MILVUS_HOST=milvus:19530
       - MILVUS_COLLECTION=ai_agent_memory
-      - MCP_WEB_SEARCH_HOST=http://mcp-web-search:4001
+      - MCP_WEB_SEARCH_HOST=http://mcp-web-search:3000
       - AGENT_CHARACTER=You are a helpful AI assistant with access to various tools and skills
       - AGENT_ROLE=AI Assistant and Tool User
     depends_on:
