@@ -46,12 +46,12 @@ func (c *Client) Start(ctx context.Context) error {
 		Version: "1.0.0",
 	}
 
-	if _, err := client.Initialize(ctx, initRequest); err != nil {
+	if _, err := c.sseMCPClient.Initialize(ctx, initRequest); err != nil {
 		return err
 	}
 
 	// Test Ping
-	return client.Ping(ctx)
+	return c.sseMCPClient.Ping(ctx)
 }
 
 func (c *Client) Close() error {
