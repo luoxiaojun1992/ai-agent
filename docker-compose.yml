@@ -102,11 +102,13 @@ services:
   mcp-web-search:
     image: ghcr.io/aas-ee/open-web-search:latest
     container_name: mcp-web-search
-    restart: always
     ports:
       - "3001:3000"
     environment:
       NODE_ENV: production
+    restart: always
+    networks:
+      - ai-agent-network
 
   # AI Agent Service
   ai-agent-svc:
