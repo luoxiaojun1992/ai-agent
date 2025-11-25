@@ -71,6 +71,10 @@ func NewServer() (*Server, error) {
 		cancel()
 		return nil, err
 	}
+	if err := mcpClient.Start(ctx); err != nil {
+		cancel()
+		return nil, err
+	}
 
 	// Create agent with skills
 	agent, err := ai_agent.NewAgentDouble(ctx,
