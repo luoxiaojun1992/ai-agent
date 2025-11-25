@@ -15,12 +15,8 @@ type FunctionCall struct {
 
 func ParseFunctionCalling(prompt string) ([]*FunctionCall, error) {
 	//todo test
-	//todo remove debug log
-	log.Println(prompt)
 	regExp := regexp.MustCompile(`\<tool>(.+)\</tool>`)
 	matches := regExp.FindAllString(prompt, -1)
-	//todo remove debug log
-	log.Println(matches)
 	funcCallList := make([]*FunctionCall, 0, len(matches))
 	for _, match := range matches {
 		funcCallJson := strings.ReplaceAll(match, "<tool>", "")
