@@ -134,6 +134,7 @@ services:
     depends_on:
       - milvus
       - ollama
+      - mcp-web-search
     restart: always
     networks:
       - ai-agent-network
