@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	mcpClient "github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 type IClient interface {
@@ -38,9 +39,9 @@ func (c *Client) Start(ctx context.Context) error {
 	}
 	
 	// Initialize
-	initRequest := mcpClient.InitializeRequest{}
-	initRequest.Params.ProtocolVersion = mcpClient.LATEST_PROTOCOL_VERSION
-	initRequest.Params.ClientInfo = mcpClient.Implementation{
+	initRequest := mcp.InitializeRequest{}
+	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+	initRequest.Params.ClientInfo = mcp.Implementation{
 		Name:    "mcp-client",
 		Version: "1.0.0",
 	}
@@ -58,7 +59,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) ListTools(ctx context.Context) ([]string, error) {
-	result, err := c.sseMCPClient.ListTools(ctx, mcpClient.ListToolsRequest{})
+	result, err := c.sseMCPClient.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (c *Client) ListTools(ctx context.Context) ([]string, error) {
 }
 
 func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {
-	req := mcpClient.CallToolRequest{}
+	req := mcp.CallToolRequest{}
 	req.Params.Name = name
 	req.Params.Arguments = arguments
 	result, err := c.sseMCPClient.CallTool(ctx, req)
