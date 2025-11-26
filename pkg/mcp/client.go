@@ -59,6 +59,10 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) ListTools(ctx context.Context) ([]string, error) {
+	if err := c.InitializeRequest(ctx); err != nil {
+		return nil, err
+	}
+	
 	result, err := c.sseMCPClient.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		return nil, err
@@ -76,6 +80,10 @@ func (c *Client) ListTools(ctx context.Context) ([]string, error) {
 }
 
 func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {
+	if err := c.InitializeRequest(ctx); err != nil {
+		return nil, err
+	}
+	
 	req := mcp.CallToolRequest{}
 	req.Params.Name = name
 	req.Params.Arguments = arguments
