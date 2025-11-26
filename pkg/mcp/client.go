@@ -37,6 +37,11 @@ func (c *Client) Initialize(ctx context.Context) error {
 	// Initialize
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+	initRequest.Params.Capabilities = mcp.ClientCapabilities{
+        Tools:     &mcp.ToolsCapability{},
+        Resources: &mcp.ResourcesCapability{},
+        Prompts:   &mcp.PromptsCapability{},
+    }
 	initRequest.Params.ClientInfo = mcp.Implementation{
 		Name:    "mcp-client",
 		Version: "1.0.0",
