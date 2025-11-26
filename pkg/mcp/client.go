@@ -35,7 +35,7 @@ func NewClient(config *Config) (*Client, error) {
 
 func (c *Client) Initialize(ctx context.Context) error {
 	// Start
-	if err := c.sseMCPClient.Start(); err != nil {
+	if err := c.sseMCPClient.Start(ctx); err != nil {
 		return err
 	}
 	
