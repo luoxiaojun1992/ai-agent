@@ -67,6 +67,10 @@ func (m *MCP) Do(ctx context.Context, cmdCtx any, callback func(output any) (any
 		return fmt.Errorf("error converting arguments from params: expected map[string]interface{}, got %T", arguments)
 	}
 
+	if err := m.MCPClient.InitRequest(ctx); err != nil {
+		return err
+	}
+
 	result, err := m.MCPClient.CallTool(ctx, nameStr, argumentMap)
 	if err != nil {
 		return err

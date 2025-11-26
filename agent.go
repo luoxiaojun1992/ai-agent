@@ -452,16 +452,16 @@ func (ad *AgentDouble) AddUserMemory(content string, images []string) *AgentDoub
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
-	ado := ad.AddSystemMemory(ad.Agent.personalInfo.prompt(), nil).
-		AddSystemMemory(ad.personalInfo.prompt(), nil).
-		AddSystemMemory(ad.embeddingModelPrompt(), nil).
-		AddSystemMemory(ad.milvusPrompt(), nil).
-		AddSystemMemory(ad.loopPrompt(), nil)
+	ado := ad.AddAssistantMemory(ad.Agent.personalInfo.prompt(), nil).
+		AddAssistantMemory(ad.personalInfo.prompt(), nil).
+		AddAssistantMemory(ad.embeddingModelPrompt(), nil).
+		AddAssistantMemory(ad.milvusPrompt(), nil).
+		AddAssistantMemory(ad.loopPrompt(), nil)
 	if len(ad.Agent.skillSet) > 0 {
-		ado.AddSystemMemory(ad.Agent.toolPrompt(), nil)
+		ado.AddAssistantMemory(ad.Agent.toolPrompt(), nil)
 	}
 	if len(ad.skillSet) > 0 {
-		ado.AddSystemMemory(ad.toolPrompt(), nil)
+		ado.AddAssistantMemory(ad.toolPrompt(), nil)
 	}
 	return ado
 }
@@ -500,7 +500,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		for _, functionCall := range functionCallList {
 			funcCallback := func(output any) (any, error) {
 				resultOfFunCall := fmt.Sprintf("The result of function [%s]: %v", functionCall.Function, output)
-				ad.AddSystemMemory(resultOfFunCall, nil)
+				ad.AddAssistantMemory(resultOfFunCall, nil)
 				err := callback(resultOfFunCall)
 				return nil, err
 			}
@@ -514,7 +514,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 				errorOfFuncCall := fmt.Sprintf("The error [%s] happened during executing the function [%s].",
 					cmdErr.Error(),
 					functionCall.Function)
-				ad.AddSystemMemory(errorOfFuncCall, nil)
+				ad.AddAssistantMemory(errorOfFuncCall, nil)
 				if err := callback(errorOfFuncCall); err != nil {
 					return err
 				}
@@ -525,7 +525,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 			}
 
 			successOfFuncCall := fmt.Sprintf("The function [%s] has been executed successfully.", functionCall.Function)
-			ad.AddSystemMemory(successOfFuncCall, nil)
+			ad.AddAssistantMemory(successOfFuncCall, nil)
 			callback(successOfFuncCall)
 		}
 
@@ -557,7 +557,7 @@ func (ad *AgentDouble) ListenAndWatch(ctx context.Context, message string, image
 		return err
 	}
 	if len(ctxVectors) > 0 {
-		ad.AddSystemMemory("Context: \n"+strings.Join(ctxVectors, "\n"), nil)
+		ad.AddAssistantMemory("Context: \n"+strings.Join(ctxVectors, "\n"), nil)
 	}
 
 	//Generate response
@@ -573,7 +573,7 @@ func (ad *AgentDouble) Think(ctx context.Context, callback func(output any) erro
 }
 
 func (ad *AgentDouble) Learn(info string) *AgentDouble {
-	return ad.AddSystemMemory(info, nil)
+	return ad.AddAssistantMemory(info, nil)
 }
 
 func (ad *AgentDouble) Read(url string) error {
@@ -585,7 +585,7 @@ func (ad *AgentDouble) Read(url string) error {
 		return fmt.Errorf("bad http code while reading in agent double")
 	}
 	if len(resp.Body) > 0 {
-		ad.AddSystemMemory(string(resp.Body), nil)
+		ad.AddAssistantMemory(string(resp.Body), nil)
 	}
 	return nil
 }

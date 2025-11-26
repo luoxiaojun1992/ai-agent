@@ -34,10 +34,10 @@ func NewClient(config *Config) (*Client, error) {
 }
 
 func (c *Client) Start(ctx context.Context) error {
-	if err := c.sseMCPClient.Start(ctx); err != nil {
-		return err
-	}
-	
+	return c.sseMCPClient.Start(ctx)
+}
+
+func (c *Client) InitRequest(ctx context.Context) error {
 	// Initialize
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
