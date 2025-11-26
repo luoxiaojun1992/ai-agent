@@ -18,7 +18,7 @@ type Config struct {
 
 type Client struct {
 	config       *Config
-	sseMCPClient *mcpClient.SSEMCPClient
+	sseMCPClient *mcpClient.Client
 }
 
 func NewClient(config *Config) (*Client, error) {
@@ -33,11 +33,7 @@ func NewClient(config *Config) (*Client, error) {
 	}, nil
 }
 
-func (c *Client) Start(ctx context.Context) error {
-	return c.sseMCPClient.Start(ctx)
-}
-
-func (c *Client) InitRequest(ctx context.Context) error {
+func (c *Client) Initialize(ctx context.Context) error {
 	// Initialize
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
@@ -59,10 +55,6 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) ListTools(ctx context.Context) ([]string, error) {
-	if err := c.InitRequest(ctx); err != nil {
-		return nil, err
-	}
-	
 	result, err := c.sseMCPClient.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		return nil, err
@@ -79,11 +71,7 @@ func (c *Client) ListTools(ctx context.Context) ([]string, error) {
 	return toolJsonList, nil
 }
 
-func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {
-	if err := c.InitRequest(ctx); err != nil {
-		return nil, err
-	}
-	
+func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {	
 	req := mcp.CallToolRequest{}
 	req.Params.Name = name
 	req.Params.Arguments = arguments

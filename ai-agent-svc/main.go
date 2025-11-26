@@ -71,7 +71,7 @@ func NewServer() (*Server, error) {
 		cancel()
 		return nil, err
 	}
-	if err := mcpClient.Start(ctx); err != nil {
+	if err := mcpClient.Initialize(ctx); err != nil {
 		cancel()
 		return nil, err
 	}
