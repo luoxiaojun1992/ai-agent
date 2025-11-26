@@ -47,9 +47,9 @@ func NewServer() (*Server, error) {
 		Port: getEnv("PORT", "8080"),
 		CORSOrigins: []string{"*"}, // Default to allow all origins
 		AgentConfig: &ai_agent.Config{
-			ChatModel:             getEnv("CHAT_MODEL", "qwen3-vl:8b"),
+			ChatModel:             getEnv("CHAT_MODEL", "qwen3-vl:4b"),
 			EmbeddingModel:        getEnv("EMBEDDING_MODEL", "nomic-embed-text"),
-			SupervisorModel:       getEnv("SUPERVISOR_MODEL", "qwen3-vl:8b"),
+			SupervisorModel:       getEnv("SUPERVISOR_MODEL", "qwen3-vl:4b"),
 			OllamaHost:            getEnv("OLLAMA_HOST", "http://ollama:11434"),
 			MilvusHost:            getEnv("MILVUS_HOST", "milvus:19530"),
 			MilvusCollection:      getEnv("MILVUS_COLLECTION", "ai_agent_memory"),
