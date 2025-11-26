@@ -59,7 +59,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) ListTools(ctx context.Context) ([]string, error) {
-	if err := c.InitializeRequest(ctx); err != nil {
+	if err := c.InitRequest(ctx); err != nil {
 		return nil, err
 	}
 	
@@ -80,7 +80,7 @@ func (c *Client) ListTools(ctx context.Context) ([]string, error) {
 }
 
 func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {
-	if err := c.InitializeRequest(ctx); err != nil {
+	if err := c.InitRequest(ctx); err != nil {
 		return nil, err
 	}
 	
