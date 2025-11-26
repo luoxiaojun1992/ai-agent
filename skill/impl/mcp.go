@@ -39,9 +39,6 @@ func (m *MCP) ShortDescription() string {
 }
 
 func (m *MCP) Do(ctx context.Context, cmdCtx any, callback func(output any) (any, error)) error {
-	//todo remove debug log
-	log.Println(cmdCtx)
-
 	params, isValidParams := cmdCtx.(map[string]any)
 	if !isValidParams {
 		return errors.New("error converting params for mcp skill")
@@ -69,10 +66,6 @@ func (m *MCP) Do(ctx context.Context, cmdCtx any, callback func(output any) (any
 	default:
 		return fmt.Errorf("error converting arguments from params: expected map[string]interface{}, got %T", arguments)
 	}
-
-	//todo remove debug log
-	log.Println(nameStr)
-	log.Println(argumentMap)
 
 	result, err := m.MCPClient.CallTool(ctx, nameStr, argumentMap)
 	if err != nil {

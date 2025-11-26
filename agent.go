@@ -297,8 +297,6 @@ func (m *Memory) getContextLength() int {
 	return length
 }
 
-//todo calculate context length
-
 type AgentDoubleOption struct {
 	config     *Config
 	agent      *Agent
