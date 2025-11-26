@@ -119,7 +119,7 @@ AI_AGENT_SVC_URL=http://ai-agent-svc:8080
 ```env
 PORT=8080
 CORS_ORIGINS=*
-CHAT_MODEL=deepseek-r1:1.5b
+CHAT_MODEL=qwen3-vl:8b
 EMBEDDING_MODEL=nomic-embed-text
 OLLAMA_HOST=http://ollama:11434
 MILVUS_HOST=milvus:19530

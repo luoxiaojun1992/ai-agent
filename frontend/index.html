@@ -388,7 +388,6 @@
                                     const data = JSON.parse(dataStr);
                                     if (eventType === 'message' && dataStr) {
                                         content += data.content;
-                                        content = marked.parse(content);
                                         updateStreamingMessage(messageElement, content);
                                     } else if (eventType === 'complete') {
                                         finalizeStreamingMessage(messageElement);
@@ -424,7 +423,7 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.textContent = message;
+            contentDiv.innerHTML = marked.parse(message);
             
             messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
@@ -463,11 +462,11 @@
         
         function finalizeStreamingMessage(messageElement, finalContent = null) {
             if (finalContent !== null) {
-                messageElement.contentDiv.textContent = finalContent;
+                messageElement.contentDiv.innerHTML = marked.parse(finalContent);
             } else {
                 // Remove cursor indicator
                 const currentText = messageElement.contentDiv.textContent;
-                messageElement.contentDiv.textContent = currentText.replace('▋', '');
+                messageElement.contentDiv.innerHTML = marked.parse(currentText.replace('▋', ''));
             }
             
             // Remove streaming class
