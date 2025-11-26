@@ -274,9 +274,13 @@ type MemoryCtx struct {
 }
 
 func (mc *MemoryCtx) toOllamaMessage() *ollama.Message {
+	content := mc.Content
+	if mc.Epoch > 0 {
+		content = fmt.Sprintf("[This message has been recalled %d times] ", mc.Epoch) + mc.Content
+	}
 	return &ollama.Message{
 		Role:    mc.Role,
-		Content: fmt.Sprintf("[This message has been recalled %d times] ", mc.Epoch) + mc.Content,
+		Content: content,
 		Images:  append(make([]string, 0, len(mc.Images)), mc.Images...),
 	}
 }
@@ -455,13 +459,15 @@ func (ad *AgentDouble) InitMemory() *AgentDouble {
 	ado := ad.AddAssistantMemory(ad.Agent.personalInfo.prompt(), nil).
 		AddAssistantMemory(ad.personalInfo.prompt(), nil).
 		AddAssistantMemory(ad.embeddingModelPrompt(), nil).
-		AddAssistantMemory(ad.milvusPrompt(), nil).
-		AddAssistantMemory(ad.loopPrompt(), nil)
+		AddAssistantMemory(ad.milvusPrompt(), nil)
 	if len(ad.Agent.skillSet) > 0 {
 		ado.AddAssistantMemory(ad.Agent.toolPrompt(), nil)
 	}
 	if len(ad.skillSet) > 0 {
 		ado.AddAssistantMemory(ad.toolPrompt(), nil)
+	}
+	if ad.config.AgentMode == AgentModeLoop {
+		ado.AddAssistantMemory(ad.loopPrompt(), nil)
 	}
 	return ado
 }

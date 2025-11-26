@@ -60,7 +60,7 @@ func NewServer() (*Server, error) {
 			AgentMode:             ai_agent.AgentModeChat,
 			AgentLoopDuration:     1 * time.Second,
 		},
-		AgentCharacter: getEnv("AGENT_CHARACTER", "You are a helpful AI assistant"),
+		AgentCharacter: getEnv("AGENT_CHARACTER", "I am a helpful AI assistant"),
 		AgentRole:      getEnv("AGENT_ROLE", "AI Assistant"),
 	}
 	
