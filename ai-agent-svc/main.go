@@ -225,7 +225,7 @@ func (s *Server) chatHandler(c *gin.Context) {
 		})
 	case err := <-errChan:
 		c.JSON(500, gin.H{"error": err.Error()})
-	case <-time.After(60 * time.Second):
+	case <-time.After(600 * time.Second):
 		c.JSON(504, gin.H{"error": "Request timeout"})
 	}
 }
@@ -316,7 +316,7 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 				})
 				return false
 				
-			case <-time.After(60 * time.Second):
+			case <-time.After(600 * time.Second):
 				// Send timeout event
 				c.SSEvent("error", map[string]interface{}{
 					"error":     "Request timeout",
@@ -369,7 +369,7 @@ func (s *Server) skillHandler(c *gin.Context) {
 		})
 	case err := <-errChan:
 		c.JSON(500, gin.H{"error": err.Error()})
-	case <-time.After(30 * time.Second):
+	case <-time.After(600 * time.Second):
 		c.JSON(504, gin.H{"error": "Request timeout"})
 	}
 }
