@@ -465,19 +465,19 @@ func (ad *AgentDouble) AddToolMemory(content string, images []string) *AgentDoub
 
 func (ad *AgentDouble) AddToolSampleMemory() *AgentDouble {
 	return ad.AddUserMemory("Please tell me what's the weather like today", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
 		AddUserMemory("What's the weather like today", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
 		AddUserMemory("What's AI", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"What's AI"}}}</tool>`).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"What's AI"}}}</tool>`, nil).
 		AddUserMemory("AI", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"AI"}}}</tool>`).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"AI"}}}</tool>`, nil).
 		AddUserMemory("weather", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
 		AddUserMemory("search weather", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
 		AddUserMemory("sleep", nil).
-		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`)
+		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil)
 }
 
 func (ad *AgentDouble) InitMemory() *AgentDouble {
