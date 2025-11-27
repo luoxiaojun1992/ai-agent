@@ -23,14 +23,19 @@ type EmbedResponse struct {
 }
 
 type ChatRequest struct {
-	Model    string     `json:"model"`
-	Messages []*Message `json:"messages"`
+	Model    string              `json:"model"`
+	Messages []*Message          `json:"messages"`
+	Options  *ChatRequestOptions `json:"options"`
 }
 
 type Message struct {
 	Role    string   `json:"role"`
 	Content string   `json:"content"`
 	Images  []string `json:"images"`
+}
+
+type ChatRequestOptions struct {
+	Temperature float32 `json:"temperature"`
 }
 
 type StreamResponse struct {

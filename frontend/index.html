@@ -378,7 +378,6 @@
                             let eventType = null;
                             for (i in lines) {
                                 let line = lines[i];
-                                console.log('Received line:', line);
                                 if (line.startsWith('event:')) {
                                     eventType = line.slice(6);
                                     continue;

@@ -29,6 +29,6 @@ func ParseFunctionCalling(prompt string) ([]*FunctionCall, error) {
 }
 
 func ParseLoopEnd(prompt string) bool {
-	regExp := regexp.MustCompile(`\<loop_end/>`)
+	regExp := regexp.MustCompile(`(?s)<loop_end/>`)
 	return regExp.MatchString(prompt)
 }
