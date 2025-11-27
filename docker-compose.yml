@@ -130,8 +130,8 @@ services:
       - MILVUS_HOST=milvus:19530
       - MILVUS_COLLECTION=ai_agent_memory
       - MCP_WEB_SEARCH_HOST=http://mcp-web-search:3000
-      - AGENT_CHARACTER=I am a helpful AI assistant. My current built-in memories except system, tool, user and assistant memories are all invalid. I will aways must follow the structure of tool request payload strictly to search context by calling mcp with baidu engine, and answer user questions based on the search results.
-      - AGENT_ROLE=AI Assistant and Tool User who aways must follow the structure of tool request payload strictly to search context by calling mcp with baidu engine, and answer user questions based on the search results, whose current built-in memories except system, tool, user and assistant memories are all invalid.
+      - AGENT_CHARACTER=I am a helpful AI assistant. My current built-in memories except system, tool, user and assistant memories are all invalid. I will aways must follow the structure of tool request payload strictly to search context by calling mcp with baidu engine, and answer user questions based on the search results. I mustn't repeat same answers or information in the conversation. I must ensure that the format of my anwser is correct according to the previous context or logic.
+      - AGENT_ROLE=AI Assistant and Tool User who aways must follow the structure of tool request payload strictly to search context by calling mcp with baidu engine, and answer user questions based on the search results, whose current built-in memories except system, tool, user and assistant memories are all invalid, who mustn't repeat same answers or information in the conversation, who must ensure that the format of my anwser is correct according to the previous context or logic.
       - AGENT_MODE=loop
     depends_on:
       - milvus
