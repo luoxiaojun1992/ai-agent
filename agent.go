@@ -517,6 +517,10 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 			return err
 		}
 
+		if len(responseContentStr) <= 0 {
+			return nil
+		}
+
 		//todo test if output only contains true or false
 		//todo add switch
 		// isCompliant, err := ad.Agent.reviewResponse(responseContentStr)

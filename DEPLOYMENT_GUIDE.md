@@ -64,9 +64,9 @@ LOG_LEVEL=info
 ```env
 PORT=8080
 CORS_ORIGINS=*
-CHAT_MODEL=qwen3:8b
+CHAT_MODEL=deepseek-r1:8b
 EMBEDDING_MODEL=nomic-embed-text
-SUPERVISOR_MODEL=qwen3:8b
+SUPERVISOR_MODEL=deepseek-r1:8b
 OLLAMA_HOST=http://ollama:11434
 MILVUS_HOST=milvus:19530
 MILVUS_COLLECTION=ai_agent_memory
@@ -139,7 +139,7 @@ curl -X POST http://localhost:3001/api/agent/skill \
    
    # Pull required models
    curl -X POST http://localhost:11434/api/pull \
-     -d '{"name":"qwen3:8b"}'
+     -d '{"name":"deepseek-r1:8b"}'
    
    # Check Milvus connection
    docker-compose logs milvus
