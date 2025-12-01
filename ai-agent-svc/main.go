@@ -68,7 +68,7 @@ func NewServer() (*Server, error) {
 		AgentRole:      getEnv("AGENT_ROLE", "AI Assistant"),
 	}
 
-	mcpClient, err := mcpClient.NewClient(&mcpClient.Config{
+	mcpWebSearchClient, err := mcpClient.NewClient(&mcpClient.Config{
 		Host:       getEnv("MCP_WEB_SEARCH_HOST", "http://mcp-web-search:3000"),
 		ClientType: mcpClient.ClientTypeStream,
 	})
@@ -76,7 +76,7 @@ func NewServer() (*Server, error) {
 		cancel()
 		return nil, err
 	}
-	if err := mcpClient.Initialize(ctx); err != nil {
+	if err := mcpWebSearchClient.Initialize(ctx); err != nil {
 		cancel()
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func NewServer() (*Server, error) {
 			option.AddSkill("directory_remover", &directory_reader.Remover{RootDir: "/tmp/agent"})
 
 			// Add MCP skill
-			option.AddSkill("mcp", &skillSet.MCP{MCPClient: mcpClient})
+			option.AddSkill("mcp_web_search", &skillSet.MCP{MCPClient: mcpWebSearchClient})
 
 			// Add time skills
 			option.AddSkill("sleep", &time_skill.Sleep{})
@@ -112,17 +112,17 @@ func NewServer() (*Server, error) {
 	// Initialize memory
 	agent.InitMemory().
 		AddUserMemory("Please tell me what's the weather like today", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
 		AddUserMemory("What's the weather like today", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
 		AddUserMemory("What's AI", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"What's AI"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"What's AI"}}}</tool>`, nil).
 		AddUserMemory("AI", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"AI"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"AI"}}}</tool>`, nil).
 		AddUserMemory("weather", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
 		AddUserMemory("search weather", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
 		AddUserMemory("sleep", nil).
 		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil)
 
