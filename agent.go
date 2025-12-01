@@ -29,6 +29,8 @@ type Config struct {
 
 	ModelTemperature float32
 
+	SupervisorSwitch bool
+
 	OllamaHost string
 
 	MilvusHost       string
@@ -463,39 +465,16 @@ func (ad *AgentDouble) AddToolMemory(content string, images []string) *AgentDoub
 	return ad.AddMemory("tool", content, images)
 }
 
-func (ad *AgentDouble) AddToolSampleMemory() *AgentDouble {
-	return ad.AddUserMemory("Please tell me what's the weather like today", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
-		AddUserMemory("What's the weather like today", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
-		AddUserMemory("What's AI", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"What's AI"}}}</tool>`, nil).
-		AddUserMemory("AI", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"AI"}}}</tool>`, nil).
-		AddUserMemory("weather", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
-		AddUserMemory("search weather", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
-		AddUserMemory("sleep", nil).
-		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil)
-}
-
 func (ad *AgentDouble) InitMemory() *AgentDouble {
 	ado := ad.AddAssistantMemory(ad.Agent.personalInfo.prompt(), nil).
 		AddAssistantMemory(ad.personalInfo.prompt(), nil).
 		AddSystemMemory(ad.embeddingModelPrompt(), nil).
 		AddSystemMemory(ad.milvusPrompt(), nil)
-	var isSupportSkill bool
 	if len(ad.Agent.skillSet) > 0 {
 		ado.AddSystemMemory(ad.Agent.toolPrompt(), nil)
-		isSupportSkill = true
 	}
 	if len(ad.skillSet) > 0 {
 		ado.AddSystemMemory(ad.toolPrompt(), nil)
-		isSupportSkill = true
-	}
-	if isSupportSkill {
-		ado.AddToolSampleMemory()
 	}
 	if ad.config.AgentMode == AgentModeLoop {
 		ado.AddSystemMemory(ad.loopPrompt(), nil)
@@ -521,15 +500,15 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 			return nil
 		}
 
-		//todo test if output only contains true or false
-		//todo add switch
-		// isCompliant, err := ad.Agent.reviewResponse(responseContentStr)
-		// if err != nil {
-		// 	return err
-		// }
-		// if !isCompliant {
-		// 	return errors.New("response from model is non-compliant")
-		// }
+		if ad.config.SupervisorSwitch {
+			isCompliant, err := ad.Agent.reviewResponse(responseContentStr)
+			if err != nil {
+				return err
+			}
+			if !isCompliant {
+				return errors.New("response from model is non-compliant")
+			}
+		}
 
 		ad.AddAssistantMemory(responseContentStr, nil)
 

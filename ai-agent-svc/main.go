@@ -15,36 +15,36 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	ai_agent "github.com/luoxiaojun1992/ai-agent"
-	directory_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/directory"
-	file_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/file"
 	mcpClient "github.com/luoxiaojun1992/ai-agent/pkg/mcp"
 	skillSet "github.com/luoxiaojun1992/ai-agent/skill/impl"
+	directory_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/directory"
+	file_reader "github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/file"
 	time_skill "github.com/luoxiaojun1992/ai-agent/skill/impl/time"
 )
 
 type Server struct {
-	agent       *ai_agent.AgentDouble
-	router      *gin.Engine
-	config      *Config
-	ctx         context.Context
-	cancel      context.CancelFunc
-	mcpClient   *mcpClient.Client
+	agent     *ai_agent.AgentDouble
+	router    *gin.Engine
+	config    *Config
+	ctx       context.Context
+	cancel    context.CancelFunc
+	mcpClient *mcpClient.Client
 }
 
 type Config struct {
-	Port            string
-	CORSOrigins     []string
-	AgentConfig     *ai_agent.Config
-	AgentCharacter  string
-	AgentRole       string
+	Port           string
+	CORSOrigins    []string
+	AgentConfig    *ai_agent.Config
+	AgentCharacter string
+	AgentRole      string
 }
 
 func NewServer() (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	// Load configuration
 	config := &Config{
-		Port: getEnv("PORT", "8080"),
+		Port:        getEnv("PORT", "8080"),
 		CORSOrigins: []string{"*"}, // Default to allow all origins
 		AgentConfig: &ai_agent.Config{
 			ChatModel:             getEnv("CHAT_MODEL", "deepseek-r1:8b"),
@@ -63,7 +63,7 @@ func NewServer() (*Server, error) {
 		AgentCharacter: getEnv("AGENT_CHARACTER", "I am a helpful AI assistant."),
 		AgentRole:      getEnv("AGENT_ROLE", "AI Assistant"),
 	}
-	
+
 	mcpClient, err := mcpClient.NewClient(&mcpClient.Config{
 		Host: getEnv("MCP_WEB_SEARCH_HOST", "http://mcp-web-search:3000"),
 	})
@@ -82,7 +82,7 @@ func NewServer() (*Server, error) {
 			option.SetConfig(config.AgentConfig)
 			option.SetCharacter(config.AgentCharacter)
 			option.SetRole(config.AgentRole)
-			
+
 			// Add filesystem skills
 			option.AddSkill("file_reader", &file_reader.Reader{RootDir: "/tmp/agent"})
 			option.AddSkill("file_writer", &file_reader.Writer{RootDir: "/tmp/agent"})
@@ -90,7 +90,7 @@ func NewServer() (*Server, error) {
 			option.AddSkill("directory_reader", &directory_reader.Reader{RootDir: "/tmp/agent"})
 			option.AddSkill("directory_writer", &directory_reader.Writer{RootDir: "/tmp/agent"})
 			option.AddSkill("directory_remover", &directory_reader.Remover{RootDir: "/tmp/agent"})
-			
+
 			// Add MCP skill
 			option.AddSkill("mcp", &skillSet.MCP{MCPClient: mcpClient})
 
@@ -98,18 +98,32 @@ func NewServer() (*Server, error) {
 			option.AddSkill("sleep", &time_skill.Sleep{})
 		},
 	)
-	
+
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	
+
 	// Initialize memory
-	agent.InitMemory()
-	
+	agent.InitMemory().
+		AddUserMemory("Please tell me what's the weather like today", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
+		AddUserMemory("What's the weather like today", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
+		AddUserMemory("What's AI", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"What's AI"}}}</tool>`, nil).
+		AddUserMemory("AI", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"AI"}}}</tool>`, nil).
+		AddUserMemory("weather", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
+		AddUserMemory("search weather", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
+		AddUserMemory("sleep", nil).
+		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil)
+
 	// Setup Gin router
 	router := gin.Default()
-	
+
 	// Configure CORS
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     config.CORSOrigins,
@@ -119,7 +133,7 @@ func NewServer() (*Server, error) {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-	
+
 	return &Server{
 		agent:     agent,
 		router:    router,
@@ -133,20 +147,20 @@ func NewServer() (*Server, error) {
 func (s *Server) setupRoutes() {
 	// Health check
 	s.router.GET("/health", s.healthHandler)
-	
+
 	// Agent status
 	s.router.GET("/status", s.statusHandler)
-	
+
 	// Chat with agent
 	s.router.POST("/chat", s.chatHandler)
-	
+
 	// Execute skill
 	s.router.POST("/skill", s.skillHandler)
-	
+
 	// Configuration
 	s.router.GET("/config", s.getConfigHandler)
 	s.router.PUT("/config", s.updateConfigHandler)
-	
+
 	// Memory operations
 	s.router.GET("/memory", s.getMemoryHandler)
 	s.router.DELETE("/memory", s.clearMemoryHandler)
@@ -161,9 +175,9 @@ func (s *Server) healthHandler(c *gin.Context) {
 
 func (s *Server) statusHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"status":     "running",
-		"character":  s.agent.GetDescription(),
-		"timestamp":  time.Now().Unix(),
+		"status":    "running",
+		"character": s.agent.GetDescription(),
+		"timestamp": time.Now().Unix(),
 	})
 }
 
@@ -179,36 +193,36 @@ func (s *Server) chatHandler(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	if req.Message == "" {
 		c.JSON(400, gin.H{"error": "Message is required"})
 		return
 	}
-	
+
 	// Check if stream mode is requested
 	if req.Stream {
 		s.handleStreamChat(c, req.Message)
 		return
 	}
-	
+
 	// Original blocking mode
 	// Create a channel to collect the response
 	responseChan := make(chan string, 1)
 	errChan := make(chan error, 1)
-	
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				errChan <- fmt.Errorf("panic in agent response: %v", r)
 			}
 		}()
-		
+
 		var response strings.Builder
 		err := s.agent.ListenAndWatch(c.Request.Context(), req.Message, nil, func(resp string) error {
 			response.WriteString(resp)
 			return nil
 		})
-		
+
 		if err != nil {
 			log.Println("Error during agent response", err)
 			errChan <- err
@@ -216,11 +230,11 @@ func (s *Server) chatHandler(c *gin.Context) {
 			responseChan <- response.String()
 		}
 	}()
-	
+
 	select {
 	case response := <-responseChan:
 		c.JSON(200, gin.H{
-			"response": response,
+			"response":  response,
 			"timestamp": time.Now().Unix(),
 		})
 	case err := <-errChan:
@@ -237,12 +251,12 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 	c.Header("Connection", "keep-alive")
 	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("X-Accel-Buffering", "no") // Disable proxy buffering
-	
+
 	// Create channels for streaming response
 	streamChan := make(chan string, 100)
 	errChan := make(chan error, 1)
 	doneChan := make(chan bool, 1)
-	
+
 	// Start goroutine to handle agent response
 	go func() {
 		defer func() {
@@ -252,7 +266,7 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 			// Close channel when done
 			close(streamChan)
 		}()
-		
+
 		// Use a for loop to continuously process callbacks
 		// until ListenAndWatch completes
 		err := s.agent.ListenAndWatch(c.Request.Context(), message, nil, func(resp string) error {
@@ -266,12 +280,12 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 			}
 			return nil
 		})
-		
+
 		if err != nil {
 			log.Println("Error during agent response", err)
 			errChan <- err
 		}
-		
+
 		// Signal completion
 		time.Sleep(time.Second)
 		doneChan <- true
@@ -290,16 +304,16 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 					})
 					return false
 				}
-				
+
 				// Send chunk as SSE event
 				c.SSEvent("message", map[string]interface{}{
 					"content":   chunk,
 					"timestamp": time.Now().Unix(),
 				})
-				
+
 				// Flush to ensure immediate delivery
 				c.Writer.Flush()
-				
+
 			case err := <-errChan:
 				// Send error event
 				c.SSEvent("error", map[string]interface{}{
@@ -307,7 +321,7 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 					"timestamp": time.Now().Unix(),
 				})
 				return false
-				
+
 			case <-doneChan:
 				// Send completion event
 				c.SSEvent("complete", map[string]interface{}{
@@ -315,7 +329,7 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 					"timestamp": time.Now().Unix(),
 				})
 				return false
-				
+
 			case <-time.After(600 * time.Second):
 				// Send timeout event
 				c.SSEvent("error", map[string]interface{}{
@@ -340,27 +354,27 @@ func (s *Server) skillHandler(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request format"})
 		return
 	}
-	
+
 	if req.SkillName == "" {
 		c.JSON(400, gin.H{"error": "Skill name is required"})
 		return
 	}
-	
+
 	// Execute skill
 	resultChan := make(chan interface{}, 1)
 	errChan := make(chan error, 1)
-	
+
 	go func() {
 		err := s.agent.Command(c.Request.Context(), req.SkillName, req.Parameters, func(output interface{}) (interface{}, error) {
 			resultChan <- output
 			return output, nil
 		})
-		
+
 		if err != nil {
 			errChan <- err
 		}
 	}()
-	
+
 	select {
 	case result := <-resultChan:
 		c.JSON(200, gin.H{
@@ -391,7 +405,7 @@ func (s *Server) updateConfigHandler(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid config format"})
 		return
 	}
-	
+
 	// Update configuration (simplified for demo)
 	if chatModel, ok := config["chatModel"].(string); ok {
 		s.config.AgentConfig.ChatModel = chatModel
@@ -426,30 +440,30 @@ func (s *Server) clearMemoryHandler(c *gin.Context) {
 
 func (s *Server) Start() error {
 	s.setupRoutes()
-	
+
 	// Start server
 	server := &http.Server{
 		Addr:    ":" + s.config.Port,
 		Handler: s.router,
 	}
-	
+
 	go func() {
 		log.Printf("Server starting on port %s", s.config.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
-	
+
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	log.Println("Shutting down server...")
-	
+
 	// Graceful shutdown with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown:", err)
 	}
@@ -460,7 +474,7 @@ func (s *Server) Start() error {
 	case <-time.After(30 * time.Second):
 		log.Println("Timed out during stopping server")
 	}
-	
+
 	log.Println("Server exited")
 
 	s.agent.Agent.Close()
@@ -484,7 +498,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to create server:", err)
 	}
-	
+
 	log.Println("Starting server")
 	if err := server.Start(); err != nil {
 		log.Fatal("Failed to start server:", err)
