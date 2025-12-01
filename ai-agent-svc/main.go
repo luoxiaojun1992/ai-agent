@@ -83,7 +83,7 @@ func NewServer() (*Server, error) {
 	}
 
 	mcpContext7Client, err := mcpClient.NewClient(&mcpClient.Config{
-		Host:       getEnv("MCP_CONTEXT_7_CLIENT_HOST", "http://mcp-context-7:3000"),
+		Host:       getEnv("MCP_CONTEXT_7_CLIENT_HOST", "http://mcp-context-7:8080"),
 		ClientType: mcpClient.ClientTypeStream,
 	})
 	if err != nil {

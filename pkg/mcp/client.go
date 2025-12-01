@@ -46,7 +46,7 @@ func newMcpClient(config *Config) (*mcpClient.Client, error) {
 	case ClientTypeSSE:
 		return mcpClient.NewSSEMCPClient(config.Host + "/sse")
 	case ClientTypeStream:
-		return mcpClient.NewStreamableHttpClient(config.Host)
+		return mcpClient.NewStreamableHttpClient(config.Host + "/mcp")
 	default:
 		return nil, errors.New("invalid client type")
 	}
