@@ -69,7 +69,8 @@ func NewServer() (*Server, error) {
 	}
 
 	mcpClient, err := mcpClient.NewClient(&mcpClient.Config{
-		Host: getEnv("MCP_WEB_SEARCH_HOST", "http://mcp-web-search:3000"),
+		Host:       getEnv("MCP_WEB_SEARCH_HOST", "http://mcp-web-search:3000"),
+		ClientType: mcpClient.ClientTypeStream,
 	})
 	if err != nil {
 		cancel()

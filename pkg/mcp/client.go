@@ -12,33 +12,52 @@ import (
 type IClient interface {
 }
 
+type ClientType string
+
+const (
+	ClientTypeSSE    ClientType = "sse"
+	ClientTypeStream ClientType = "stream"
+)
+
 type Config struct {
-	Host string
+	Host       string
+	ClientType ClientType
 }
 
 type Client struct {
-	config       *Config
-	sseMCPClient *mcpClient.Client
+	config        *Config
+	mcpClientImpl *mcpClient.Client
 }
 
 func NewClient(config *Config) (*Client, error) {
-	sseMCPClient, err := mcpClient.NewSSEMCPClient(config.Host + "/sse")
+	mcpClientImpl, err := newMcpClient(config)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Client{
-		config:       config,
-		sseMCPClient: sseMCPClient,
+		config:        config,
+		mcpClientImpl: mcpClientImpl,
 	}, nil
+}
+
+func newMcpClient(config *Config) (*mcpClient.Client, error) {
+	switch config.ClientType {
+	case ClientTypeSSE:
+		return mcpClient.NewSSEMCPClient(config.Host + "/sse")
+	case ClientTypeStream:
+		return mcpClient.NewStreamableHttpClient(config.Host)
+	default:
+		return nil, errors.New("invalid client type")
+	}
 }
 
 func (c *Client) Initialize(ctx context.Context) error {
 	// Start
-	if err := c.sseMCPClient.Start(ctx); err != nil {
+	if err := c.mcpClientImpl.Start(ctx); err != nil {
 		return err
 	}
-	
+
 	// Initialize
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
@@ -47,20 +66,20 @@ func (c *Client) Initialize(ctx context.Context) error {
 		Version: "1.0.0",
 	}
 
-	if _, err := c.sseMCPClient.Initialize(ctx, initRequest); err != nil {
+	if _, err := c.mcpClientImpl.Initialize(ctx, initRequest); err != nil {
 		return err
 	}
 
 	// Test Ping
-	return c.sseMCPClient.Ping(ctx)
+	return c.mcpClientImpl.Ping(ctx)
 }
 
 func (c *Client) Close() error {
-	return c.sseMCPClient.Close()
+	return c.mcpClientImpl.Close()
 }
 
 func (c *Client) ListTools(ctx context.Context) ([]string, error) {
-	result, err := c.sseMCPClient.ListTools(ctx, mcp.ListToolsRequest{})
+	result, err := c.mcpClientImpl.ListTools(ctx, mcp.ListToolsRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -76,11 +95,11 @@ func (c *Client) ListTools(ctx context.Context) ([]string, error) {
 	return toolJsonList, nil
 }
 
-func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {	
+func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {
 	req := mcp.CallToolRequest{}
 	req.Params.Name = name
 	req.Params.Arguments = arguments
-	result, err := c.sseMCPClient.CallTool(ctx, req)
+	result, err := c.mcpClientImpl.CallTool(ctx, req)
 	if err != nil {
 		return nil, err
 	}
