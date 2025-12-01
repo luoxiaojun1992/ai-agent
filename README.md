@@ -78,9 +78,7 @@ graph TB
 ## 📁 Project Structure
 
 ```
-├── ai-agent-main/              # Original AI Agent core library
-│   ├── skill/                  # Enhanced skill implementations
-│   └── ...
+├── skill/                      # Enhanced skill implementations
 ├── ui-backend/                 # Node.js UI backend service
 ├── ai-agent-svc/              # Go AI Agent microservice
 ├── frontend/                   # Web interface
@@ -126,7 +124,7 @@ docker-compose up --build -d
 |-------|-------------|
 | `file_reader` | Read content from files |
 | `file_writer` | Write content to files |
-| `file_remover` | Delete files and directories |
+| `file_remover` | Delete files |
 | `directory_reader` | List directory contents |
 | `directory_writer` | Create directories |
 | `directory_remover` | Remove directories |
@@ -136,6 +134,7 @@ docker-compose up --build -d
 | `milvus_search` | Search vectors in Milvus |
 | `ollama_embedding` | Generate text embeddings |
 | `mcp` | Call MCP tools |
+| `team` | Team collaboration functionality |
 
 ## 🔐 Security Features
 
@@ -159,9 +158,13 @@ The service can be configured in three ways:
 2. `.env` file (recommended for development)
 3. Default values
 
-To use the `.env` file approach, create a `.env` file in the project root based on `.env.example`:
+To use the `.env` file approach, create a `.env` file in the service directories based on `.env.example`:
 
 ```bash
+# In ai-agent-svc directory
+cp .env.example .env
+
+# In ui-backend directory
 cp .env.example .env
 ```
 
