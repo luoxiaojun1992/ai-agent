@@ -78,8 +78,6 @@ services:
       - "11434:11434"
     volumes:
       - ./playground/infra/ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_MODELS=deepseek-r1:8b,nomic-embed-text
     restart: always
     networks:
       - ai-agent-network
@@ -112,12 +110,10 @@ services:
       - ai-agent-network
 
   mcp-context7:
-    image: upstash/context7-mcp:latest
+    image: mcp/context7:latest
     container_name: mcp-context7
     ports:
-      - "7680:7680"
-    environment:
-      PORT: 7680
+      - "4002:3000"
     restart: always
     networks:
       - ai-agent-network
