@@ -42,6 +42,31 @@ type Config struct {
 	AgentRole      string
 }
 
+func addToolSampleMemories(ad *ai_agent.AgentDouble) {
+	ad.AddUserMemory("Please tell me what's the weather like today", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
+		AddUserMemory("What's the weather like today", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
+		AddUserMemory("What's AI", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"What's AI"}}}</tool>`, nil).
+		AddUserMemory("AI", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"AI"}}}</tool>`, nil).
+		AddUserMemory("weather", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
+		AddUserMemory("search weather", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
+		AddUserMemory("sleep", nil).
+		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil).
+		AddUserMemory("how to use mongodb", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"resolve-library-id","arguments":{"libraryName":"mongodb"}}}</tool>`, nil).
+		AddToolMemory("/mongodb/docs", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/mongodb/docs"}}}</tool>`, nil).
+		AddUserMemory("how to use next.js", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"resolve-library-id","arguments":{"libraryName":"next.js"}}}</tool>`, nil).
+		AddToolMemory("/vercel/next.js", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/vercel/next.js"}}}</tool>`, nil)
+}
+
 func NewServer() (*Server, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -50,9 +75,9 @@ func NewServer() (*Server, error) {
 		Port:        getEnv("PORT", "8080"),
 		CORSOrigins: []string{"*"}, // Default to allow all origins
 		AgentConfig: &ai_agent.Config{
-			ChatModel:             getEnv("CHAT_MODEL", "deepseek-r1:8b"),
+			ChatModel:             getEnv("CHAT_MODEL", "qwen3:0.6b"),
 			EmbeddingModel:        getEnv("EMBEDDING_MODEL", "nomic-embed-text"),
-			SupervisorModel:       getEnv("SUPERVISOR_MODEL", "deepseek-r1:8b"),
+			SupervisorModel:       getEnv("SUPERVISOR_MODEL", "qwen3:0.6b"),
 			ModelTemperature:      getFloat32Env("MODEL_TEMPERATURE", 0.1),
 			SupervisorSwitch:      getBoolEnv("SUPERVISOR_SWITCH", false),
 			OllamaHost:            getEnv("OLLAMA_HOST", "http://ollama:11434"),
@@ -125,29 +150,8 @@ func NewServer() (*Server, error) {
 	}
 
 	// Initialize memory
-	agent.InitMemory().
-		AddUserMemory("Please tell me what's the weather like today", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
-		AddUserMemory("What's the weather like today", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
-		AddUserMemory("What's AI", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"What's AI"}}}</tool>`, nil).
-		AddUserMemory("AI", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"AI"}}}</tool>`, nil).
-		AddUserMemory("weather", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
-		AddUserMemory("search weather", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
-		AddUserMemory("sleep", nil).
-		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil).
-		AddUserMemory("how to use mongodb", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"resolve-library-id","arguments":{"libraryName":"mongodb"}}}</tool>`, nil).
-		AddToolMemory("/mongodb/docs", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/mongodb/docs"}}}</tool>`, nil).
-		AddUserMemory("how to use next.js", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"resolve-library-id","arguments":{"libraryName":"next.js"}}}</tool>`, nil).
-		AddToolMemory("/vercel/next.js", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/vercel/next.js"}}}</tool>`, nil)
+	agent.InitMemory()
+	addToolSampleMemories(agent)
 
 	// Setup Gin router
 	router := gin.Default()
@@ -461,6 +465,7 @@ func (s *Server) getMemoryHandler(c *gin.Context) {
 
 func (s *Server) clearMemoryHandler(c *gin.Context) {
 	s.agent.ResetMemory()
+	addToolSampleMemories(s.agent)
 	c.JSON(200, gin.H{
 		"message": "Memory cleared successfully",
 	})

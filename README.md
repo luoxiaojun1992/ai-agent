@@ -177,7 +177,7 @@ Then modify the `.env` file according to your environment.
 | `PORT` | The port number for the service | 3001 (UI Backend), 8080 (AI Agent SVC) |
 | `CORS_ORIGIN` / `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` (UI Backend), `*` (AI Agent SVC) |
 | `AI_AGENT_SVC_URL` | URL of the AI Agent service | `http://ai-agent-svc:8080` |
-| `CHAT_MODEL` | Model name for chat completion | `deepseek-r1:8b` |
+| `CHAT_MODEL` | Model name for chat completion | `qwen3:0.6b` |
 | `EMBEDDING_MODEL` | Model name for text embeddings | `nomic-embed-text` |
 | `OLLAMA_HOST` | Host address for Ollama service | `http://ollama:11434` |
 | `MILVUS_HOST` | Host address for Milvus vector database | `milvus:19530` |
@@ -193,7 +193,7 @@ AI_AGENT_SVC_URL=http://ai-agent-svc:8080
 ```env
 PORT=8080
 CORS_ORIGINS=*
-CHAT_MODEL=deepseek-r1:8b
+CHAT_MODEL=qwen3:0.6b
 EMBEDDING_MODEL=nomic-embed-text
 OLLAMA_HOST=http://ollama:11434
 MILVUS_HOST=milvus:19530

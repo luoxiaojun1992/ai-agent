@@ -18,8 +18,8 @@ done
 echo "✅ Milvus is ready"
 
 echo "📥 Pulling Ollama models..."
-echo "Pulling deepseek-r1:8b..."
-curl -X POST http://ollama:11434/api/pull -d '{"name": "deepseek-r1:8b"}'
+echo "Pulling qwen3:0.6b..."
+curl -X POST http://ollama:11434/api/pull -d '{"name": "qwen3:0.6b"}'
 echo "Pulling nomic-embed-text..."
 curl -X POST http://ollama:11434/api/pull -d '{"name": "nomic-embed-text"}'
 echo "✅ Ollama models pulled successfully"

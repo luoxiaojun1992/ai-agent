@@ -130,9 +130,9 @@ services:
     environment:
       - PORT=8080
       - CORS_ORIGINS=*
-      - CHAT_MODEL=deepseek-r1:8b
+      - CHAT_MODEL=qwen3:0.6b
       - EMBEDDING_MODEL=nomic-embed-text
-      - SUPERVISOR_MODEL=deepseek-r1:8b
+      - SUPERVISOR_MODEL=qwen3:0.6b
       - OLLAMA_HOST=http://ollama:11434
       - MILVUS_HOST=milvus:19530
       - MILVUS_COLLECTION=ai_agent_memory
