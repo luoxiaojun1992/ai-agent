@@ -344,7 +344,6 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 				return false
 			}
 		}
-		return true
 	})
 }
 
@@ -483,7 +482,7 @@ func (s *Server) Start() error {
 	log.Println("Server exited")
 
 	s.agent.Agent.Close()
-	s.mcpClient.Close()
+	s.mcpWebSearchClient.Close()
 	s.cancel()
 
 	return nil
