@@ -516,6 +516,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 			}
 		}
 
+		previousResponseCOntent = responseContentStr
 		ad.AddAssistantMemory(responseContentStr, nil)
 
 		functionCallList, err := prompt.ParseFunctionCalling(responseContentStr)
