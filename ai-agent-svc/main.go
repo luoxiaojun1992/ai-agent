@@ -139,7 +139,15 @@ func NewServer() (*Server, error) {
 		AddUserMemory("search weather", nil).
 		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"weather"}}}</tool>`, nil).
 		AddUserMemory("sleep", nil).
-		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil)
+		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil).
+		AddUserMemory("how to use mongodb", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"resolve-library-id","arguments":{"libraryName":"mongodb"}}}</tool>`, nil).
+		AddToolMemory("/mongodb/docs", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/mongodb/docs"}}}</tool>`, nil).
+		AddUserMemory("how to use next.js", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"resolve-library-id","arguments":{"libraryName":"next.js"}}}</tool>`, nil).
+		AddToolMemory("/vercel/next.js", nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/vercel/next.js"}}}</tool>`, nil)
 
 	// Setup Gin router
 	router := gin.Default()
