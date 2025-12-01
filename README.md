@@ -106,7 +106,30 @@ docker-compose up --build -d
 
 ## 🔧 Configuration
 
+The service can be configured in three ways:
+1. Environment variables
+2. `.env` file (recommended for development)
+3. Default values
+
+To use the `.env` file approach, create a `.env` file in the project root based on `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Then modify the `.env` file according to your environment.
+
 ### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | The port number for the service | 3001 (UI Backend), 8080 (AI Agent SVC) |
+| `CORS_ORIGIN` / `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` (UI Backend), `*` (AI Agent SVC) |
+| `AI_AGENT_SVC_URL` | URL of the AI Agent service | `http://ai-agent-svc:8080` |
+| `CHAT_MODEL` | Model name for chat completion | `deepseek-r1:8b` |
+| `EMBEDDING_MODEL` | Model name for text embeddings | `nomic-embed-text` |
+| `OLLAMA_HOST` | Host address for Ollama service | `http://ollama:11434` |
+| `MILVUS_HOST` | Host address for Milvus vector database | `milvus:19530` |
 
 #### UI Backend
 ```env

@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	ai_agent "github.com/luoxiaojun1992/ai-agent"
 	mcpClient "github.com/luoxiaojun1992/ai-agent/pkg/mcp"
 	skillSet "github.com/luoxiaojun1992/ai-agent/skill/impl"
@@ -50,6 +52,8 @@ func NewServer() (*Server, error) {
 			ChatModel:             getEnv("CHAT_MODEL", "deepseek-r1:8b"),
 			EmbeddingModel:        getEnv("EMBEDDING_MODEL", "nomic-embed-text"),
 			SupervisorModel:       getEnv("SUPERVISOR_MODEL", "deepseek-r1:8b"),
+			ModelTemperature:      getFloat32Env("MODEL_TEMPERATURE", 0.1),
+			SupervisorSwitch:      getBoolEnv("SUPERVISOR_SWITCH", false),
 			OllamaHost:            getEnv("OLLAMA_HOST", "http://ollama:11434"),
 			MilvusHost:            getEnv("MILVUS_HOST", "milvus:19530"),
 			MilvusCollection:      getEnv("MILVUS_COLLECTION", "ai_agent_memory"),
@@ -491,8 +495,36 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+func getFloat32Env(key string, defaultValue float32) float32 {
+	if value := os.Getenv(key); value != "" {
+		valueFloat, err := strconv.ParseFloat(value, 32)
+		if err != nil {
+			log.Fatal("Error parsing environment variable", key, ":", err)
+		}
+		return float32(valueFloat)
+	}
+	return defaultValue
+}
+
+func getBoolEnv(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		valueBool, err := strconv.ParseBool(value)
+		if err != nil {
+			log.Fatal("Error parsing environment variable", key, ":", err)
+		}
+		return valueBool
+	}
+	return defaultValue
+}
+
 func main() {
 	log.Println("Initializing AI Agent Service...")
+
+	// Load .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("Warning: Error loading .env file, using environment variables or defaults")
+	}
 
 	server, err := NewServer()
 	if err != nil {
