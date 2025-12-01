@@ -1,6 +1,9 @@
 .idea
 vendor
 .DS_Store
+tests/test-results
+tests/node_modules
+test/playwright-report
 
 playground/*
 !playground/.gitkeep

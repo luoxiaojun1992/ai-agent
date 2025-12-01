@@ -75,9 +75,9 @@ func NewServer() (*Server, error) {
 		Port:        getEnv("PORT", "8080"),
 		CORSOrigins: []string{"*"}, // Default to allow all origins
 		AgentConfig: &ai_agent.Config{
-			ChatModel:             getEnv("CHAT_MODEL", "qwen3:0.6b"),
+			ChatModel:             getEnv("CHAT_MODEL", "qwen3:4b"),
 			EmbeddingModel:        getEnv("EMBEDDING_MODEL", "nomic-embed-text"),
-			SupervisorModel:       getEnv("SUPERVISOR_MODEL", "qwen3:0.6b"),
+			SupervisorModel:       getEnv("SUPERVISOR_MODEL", "qwen3:4b"),
 			ModelTemperature:      getFloat32Env("MODEL_TEMPERATURE", 0.1),
 			SupervisorSwitch:      getBoolEnv("SUPERVISOR_SWITCH", false),
 			OllamaHost:            getEnv("OLLAMA_HOST", "http://ollama:11434"),

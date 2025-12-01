@@ -64,9 +64,9 @@ LOG_LEVEL=info
 ```env
 PORT=8080
 CORS_ORIGINS=*
-CHAT_MODEL=qwen3:0.6b
+CHAT_MODEL=qwen3:4b
 EMBEDDING_MODEL=nomic-embed-text
-SUPERVISOR_MODEL=qwen3:0.6b
+SUPERVISOR_MODEL=qwen3:4b
 OLLAMA_HOST=http://ollama:11434
 MILVUS_HOST=milvus:19530
 MILVUS_COLLECTION=ai_agent_memory
@@ -139,7 +139,7 @@ curl -X POST http://localhost:3001/api/agent/skill \
    
    # Pull required models
    curl -X POST http://localhost:11434/api/pull \
-     -d '{"name":"qwen3:0.6b"}'
+     -d '{"name":"qwen3:4b"}'
    
    # Check Milvus connection
    docker-compose logs milvus

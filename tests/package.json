@@ -1,0 +1,21 @@
+{
+  "name": "ai-agent-frontend-tests",
+  "version": "1.0.0",
+  "description": "Frontend tests for AI Agent UI",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
+  },
+  "keywords": [
+    "playwright",
+    "test",
+    "ai-agent"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
