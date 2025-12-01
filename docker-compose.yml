@@ -78,6 +78,7 @@ services:
       - "11434:11434"
     volumes:
       - ./playground/infra/ollama_data:/root/.ollama
+    gpus: all
     restart: always
     networks:
       - ai-agent-network
