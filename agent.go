@@ -483,6 +483,8 @@ func (ad *AgentDouble) InitMemory() *AgentDouble {
 }
 
 func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func(response string) error) error {
+	var previousResponseCOntent string
+
 	for {
 		ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.Contexts))
 		for _, memCtx := range ad.memory.Contexts {
@@ -497,6 +499,10 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 		}
 
 		if len(responseContentStr) <= 0 {
+			return nil
+		}
+
+		if responseContentStr == previousResponseCOntent {
 			return nil
 		}
 
