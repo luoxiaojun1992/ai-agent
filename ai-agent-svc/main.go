@@ -25,12 +25,12 @@ import (
 )
 
 type Server struct {
-	agent     *ai_agent.AgentDouble
-	router    *gin.Engine
-	config    *Config
-	ctx       context.Context
-	cancel    context.CancelFunc
-	mcpClient *mcpClient.Client
+	agent              *ai_agent.AgentDouble
+	router             *gin.Engine
+	config             *Config
+	ctx                context.Context
+	cancel             context.CancelFunc
+	mcpWebSearchClient *mcpClient.Client
 }
 
 type Config struct {
@@ -140,12 +140,12 @@ func NewServer() (*Server, error) {
 	}))
 
 	return &Server{
-		agent:     agent,
-		router:    router,
-		config:    config,
-		ctx:       ctx,
-		cancel:    cancel,
-		mcpClient: mcpClient,
+		agent:              agent,
+		router:             router,
+		config:             config,
+		ctx:                ctx,
+		cancel:             cancel,
+		mcpWebSearchClient: mcpWebSearchClient,
 	}, nil
 }
 
