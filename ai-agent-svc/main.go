@@ -31,6 +31,7 @@ type Server struct {
 	ctx                context.Context
 	cancel             context.CancelFunc
 	mcpWebSearchClient *mcpClient.Client
+	mcpContext7Client  *mcpClient.Client
 }
 
 type Config struct {
@@ -70,13 +71,26 @@ func NewServer() (*Server, error) {
 
 	mcpWebSearchClient, err := mcpClient.NewClient(&mcpClient.Config{
 		Host:       getEnv("MCP_WEB_SEARCH_HOST", "http://mcp-web-search:3000"),
-		ClientType: mcpClient.ClientTypeStream,
+		ClientType: mcpClient.ClientTypeSSE,
 	})
 	if err != nil {
 		cancel()
 		return nil, err
 	}
 	if err := mcpWebSearchClient.Initialize(ctx); err != nil {
+		cancel()
+		return nil, err
+	}
+
+	mcpContext7Client, err := mcpClient.NewClient(&mcpClient.Config{
+		Host:       getEnv("MCP_CONTEXT_7_CLIENT_HOST", "http://mcp-context-7:3000"),
+		ClientType: mcpClient.ClientTypeStream,
+	})
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	if err := mcpContext7Client.Initialize(ctx); err != nil {
 		cancel()
 		return nil, err
 	}
@@ -96,8 +110,9 @@ func NewServer() (*Server, error) {
 			option.AddSkill("directory_writer", &directory_reader.Writer{RootDir: "/tmp/agent"})
 			option.AddSkill("directory_remover", &directory_reader.Remover{RootDir: "/tmp/agent"})
 
-			// Add MCP skill
+			// Add MCP skills
 			option.AddSkill("mcp_web_search", &skillSet.MCP{MCPClient: mcpWebSearchClient})
+			option.AddSkill("mcp_context_7", &skillSet.MCP{MCPClient: mcpContext7Client})
 
 			// Add time skills
 			option.AddSkill("sleep", &time_skill.Sleep{})
@@ -146,6 +161,7 @@ func NewServer() (*Server, error) {
 		ctx:                ctx,
 		cancel:             cancel,
 		mcpWebSearchClient: mcpWebSearchClient,
+		mcpContext7Client:  mcpContext7Client,
 	}, nil
 }
 
@@ -483,6 +499,7 @@ func (s *Server) Start() error {
 
 	s.agent.Agent.Close()
 	s.mcpWebSearchClient.Close()
+	s.mcpContext7Client.Close()
 	s.cancel()
 
 	return nil
