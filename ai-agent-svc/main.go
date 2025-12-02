@@ -43,7 +43,8 @@ type Config struct {
 }
 
 func addToolSampleMemories(ad *ai_agent.AgentDouble) {
-	ad.AddUserMemory("Please tell me what's the weather like today", nil).
+	ad.AddAssistantMemory("Beginning of sample conversation with tool calls, only for reference", nil).
+		AddUserMemory("Please tell me what's the weather like today", nil).
 		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
 		AddUserMemory("What's the weather like today", nil).
 		AddAssistantMemory(`<tool>{"function":"mcp_web_search","context":{"name":"search","arguments":{"query":"what's the weather like today"}}}</tool>`, nil).
@@ -64,7 +65,8 @@ func addToolSampleMemories(ad *ai_agent.AgentDouble) {
 		AddUserMemory("how to use next.js", nil).
 		AddAssistantMemory(`<tool>{"function":"mcp_code_repo_search","context":{"name":"resolve-library-id","arguments":{"libraryName":"next.js"}}}</tool>`, nil).
 		AddToolMemory("/vercel/next.js", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_code_repo_search","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/vercel/next.js"}}}</tool>`, nil)
+		AddAssistantMemory(`<tool>{"function":"mcp_code_repo_search","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/vercel/next.js"}}}</tool>`, nil).
+		AddAssistantMemory("End of sample conversation with tool calls, only for reference", nil)
 }
 
 func NewServer() (*Server, error) {
