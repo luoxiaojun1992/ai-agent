@@ -58,13 +58,13 @@ func addToolSampleMemories(ad *ai_agent.AgentDouble) {
 		AddUserMemory("sleep", nil).
 		AddAssistantMemory(`<tool>{"function":"sleep","context":{"duration":"1s"}}}</tool>`, nil).
 		AddUserMemory("how to use mongodb", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"resolve-library-id","arguments":{"libraryName":"mongodb"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_code_repo_search","context":{"name":"resolve-library-id","arguments":{"libraryName":"mongodb"}}}</tool>`, nil).
 		AddToolMemory("/mongodb/docs", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/mongodb/docs"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_code_repo_search","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/mongodb/docs"}}}</tool>`, nil).
 		AddUserMemory("how to use next.js", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"resolve-library-id","arguments":{"libraryName":"next.js"}}}</tool>`, nil).
+		AddAssistantMemory(`<tool>{"function":"mcp_code_repo_search","context":{"name":"resolve-library-id","arguments":{"libraryName":"next.js"}}}</tool>`, nil).
 		AddToolMemory("/vercel/next.js", nil).
-		AddAssistantMemory(`<tool>{"function":"mcp_context_7","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/vercel/next.js"}}}</tool>`, nil)
+		AddAssistantMemory(`<tool>{"function":"mcp_code_repo_search","context":{"name":"get-library-docs","arguments":{"context7CompatibleLibraryID":"/vercel/next.js"}}}</tool>`, nil)
 }
 
 func NewServer() (*Server, error) {
@@ -137,7 +137,7 @@ func NewServer() (*Server, error) {
 
 			// Add MCP skills
 			option.AddSkill("mcp_web_search", &skillSet.MCP{MCPClient: mcpWebSearchClient})
-			option.AddSkill("mcp_context_7", &skillSet.MCP{MCPClient: mcpContext7Client})
+			option.AddSkill("mcp_code_repo_search", &skillSet.MCP{MCPClient: mcpContext7Client})
 
 			// Add time skills
 			option.AddSkill("sleep", &time_skill.Sleep{})
