@@ -83,6 +83,19 @@
             align-items: center;
         }
         
+        #plannerButton {
+            background-color: #28a745;
+        }
+        
+        #plannerButton:hover {
+            background-color: #218838;
+        }
+        
+        #plannerButton:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        
         input[type="text"] {
             flex: 1;
             padding: 10px;
@@ -212,6 +225,10 @@
                     <span>Streaming Mode</span>
                     <span class="stream-indicator" style="display: none;"></span>
                 </label>
+            </div>
+            
+            <div class="input-group">
+                <button id="plannerButton" onclick="sendPlannerMessage()">Agent Planner</button>
             </div>
             
             <div class="input-group">
@@ -489,15 +506,20 @@
         
         function updateSendButton() {
             const sendButton = document.getElementById('sendButton');
+            const plannerButton = document.getElementById('plannerButton');
             const input = document.getElementById('messageInput');
             
             if (isLoading) {
                 sendButton.disabled = true;
                 sendButton.textContent = 'Sending...';
+                plannerButton.disabled = true;
+                plannerButton.textContent = 'Planning...';
                 input.disabled = true;
             } else {
                 sendButton.disabled = false;
                 sendButton.textContent = 'Send';
+                plannerButton.disabled = false;
+                plannerButton.textContent = 'Agent Planner';
                 input.disabled = false;
             }
         }
@@ -546,6 +568,28 @@
             } catch (error) {
                 document.getElementById('memoryDisplay').innerHTML = '<p>Error loading memory</p>';
             }
+        }
+        
+        async function sendPlannerMessage() {
+            const mode = document.querySelector('input[name="chatMode"]:checked').value;
+            const plannerMessage = "Please create a detailed plan for the following task, and then execute it step by step. Try to use mcp skills whenever possible. Task: " + document.getElementById('messageInput').value;
+            
+            if (!plannerMessage || isLoading) return;
+            
+            isLoading = true;
+            updateSendButton();
+            
+            // Add user message to chat
+            addChatMessage("Executing planned task: " + document.getElementById('messageInput').value, 'user');
+            
+            if (mode === 'streaming') {
+                await sendStreamingMessage(plannerMessage);
+            } else {
+                await sendBlockingMessage(plannerMessage);
+            }
+            
+            isLoading = false;
+            updateSendButton();
         }
     </script>
 </body>
