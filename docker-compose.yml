@@ -18,6 +18,7 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+      start_period: 90s
     restart: always
     networks:
       - ai-agent-network
@@ -39,6 +40,7 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+      start_period: 90s
     restart: always
     networks:
       - ai-agent-network
@@ -65,8 +67,10 @@ services:
       - "19530:19530"
       - "9091:9091"
     depends_on:
-      - "etcd"
-      - "minio"
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: always
     networks:
       - ai-agent-network
@@ -78,6 +82,12 @@ services:
       - "11434:11434"
     volumes:
       - ./playground/infra/ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
     gpus: all
     restart: always
     networks:
@@ -89,9 +99,11 @@ services:
       dockerfile: Dockerfile
     container_name: ai-agent-migration
     depends_on:
-      - milvus
-      - ollama
-    restart: "no"
+      milvus:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    restart: "on-failure"
     environment:
       - MILVUS_HOST=http://milvus:19530
       - OLLAMA_HOST=http://ollama:11434
@@ -106,6 +118,12 @@ services:
     environment:
       NODE_ENV: production
       DEFAULT_SEARCH_ENGINE: baidu
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "3000"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
     restart: always
     networks:
       - ai-agent-network
@@ -115,6 +133,12 @@ services:
     container_name: mcp-context7
     ports:
       - "4002:8080"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8080"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
     restart: always
     networks:
       - ai-agent-network
@@ -142,11 +166,23 @@ services:
       - AGENT_CHARACTER=I am a helpful AI agent. My current built-in memories except system, tool, user and assistant memories are all invalid. I must follow the structure of tool request payload strictly to search context by calling mcp_{name} when the context of question does not exist in current contexts firstly, then answer user questions based on the search results. I must not repeat same answers or information in the conversation. I must ensure that the format of my anwser is correct according to the previous context or logic.
       - AGENT_ROLE=AI Agent and Tool User who must follow the structure of tool request payload strictly to search context by calling mcp_{name} when the context of question does not exist in current contexts firstly, then answer user questions based on the search results, whose current built-in memories except system, tool, user and assistant memories are all invalid, who must not repeat same answers or information in the conversation, who must ensure that the format of my anwser is correct according to the previous context or logic.
       - AGENT_MODE=loop
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
     depends_on:
-      - milvus
-      - ollama
-      - mcp-web-search
-      - mcp-context7
+      milvus:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+      mcp-web-search:
+        condition: service_healthy
+      mcp-context7:
+        condition: service_healthy
     restart: always
     networks:
       - ai-agent-network
@@ -166,8 +202,15 @@ services:
       - PORT=3001
       - CORS_ORIGIN=http://localhost:3000
       - AI_AGENT_SVC_URL=http://ai-agent-svc:8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
     depends_on:
-      - ai-agent-svc
+      ai-agent-svc:
+        condition: service_healthy
     restart: always
     networks:
       - ai-agent-network
@@ -181,7 +224,8 @@ services:
     volumes:
       - ./frontend:/usr/share/nginx/html
     depends_on:
-      - ui-backend
+      ui-backend:
+        condition: service_healthy
     restart: always
     networks:
       - ai-agent-network
