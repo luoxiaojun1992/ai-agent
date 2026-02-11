@@ -477,7 +477,7 @@ func (ad *AgentDouble) InitMemory() *AgentDouble {
 		ado.AddSystemMemory(ad.toolPrompt(), nil)
 	}
 	if ad.config.AgentMode == AgentModeLoop {
-		ado.AddSystemMemory(ad.loopPrompt(), nil)
+		ado.AddAssistantMemory(ad.loopPrompt(), nil)
 	}
 	return ado
 }
