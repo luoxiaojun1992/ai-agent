@@ -1,9 +1,47 @@
-.idea
-vendor
-.DS_Store
+# Test
 tests/test-results
 tests/node_modules
 test/playwright-report
 
+# Playground
 playground/*
 !playground/.gitkeep
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+vendor/
+
+# Build output
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+.npm/
+.eslintcache
+
+# Electron
+out/
