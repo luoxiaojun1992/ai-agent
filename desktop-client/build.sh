@@ -17,7 +17,7 @@ case "$(uname -s)" in
     CYGWIN*|MINGW*|MSYS*) OS="win";;
 esac
 
-echo "检测到操作系统: $OS"
+echo "检测到操作系统：$OS"
 echo ""
 
 # 检查 Node.js
@@ -26,7 +26,7 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
-echo "Node.js 版本: $(node --version)"
+echo "Node.js 版本：$(node --version)"
 echo ""
 
 # 检查依赖

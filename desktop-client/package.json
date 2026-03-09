@@ -9,6 +9,7 @@
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
+    "build:dev:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
     "build:linux": "electron-builder --linux",
     "build:dir": "electron-builder --dir",
     "postinstall": "electron-builder install-app-deps",
@@ -77,7 +78,7 @@
         }
       ],
       "hardenedRuntime": true,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": true
     },
     "win": {
       "icon": "assets/icon.ico",
