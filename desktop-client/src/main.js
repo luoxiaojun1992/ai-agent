@@ -2,13 +2,13 @@ const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron')
 const path = require('path');
 const fs = require('fs');
 
-// 保持窗口对象的全局引用，防止被垃圾回收
+// Keep a global reference of the window object to prevent garbage collection
 let mainWindow;
 
-// 配置文件路径
+// Configuration file path
 const configPath = path.join(app.getPath('userData'), 'config.json');
 
-// 默认配置
+// Default configuration
 const defaultConfig = {
   apiBase: 'http://localhost:3001/api',
   windowWidth: 1400,
@@ -16,7 +16,7 @@ const defaultConfig = {
   theme: 'light'
 };
 
-// 读取配置
+// Load configuration
 function loadConfig() {
   try {
     if (fs.existsSync(configPath)) {
@@ -29,7 +29,7 @@ function loadConfig() {
   return defaultConfig;
 }
 
-// 保存配置
+// Save configuration
 function saveConfig(config) {
   try {
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
@@ -38,7 +38,7 @@ function saveConfig(config) {
   }
 }
 
-// 创建主窗口
+// Create main window
 function createMainWindow() {
   const config = loadConfig();
   
@@ -54,22 +54,22 @@ function createMainWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    show: false, // 先不显示，等加载完成后再显示
+    show: false, // Don't show until loaded
     titleBarStyle: 'default'
   });
 
-  // 加载本地HTML文件
+  // Load local HTML file
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
-  // 开发工具（仅在开发环境启用）
+  // DevTools (only in development environment)
   // mainWindow.webContents.openDevTools();
 
-  // 窗口加载完成后显示
+  // Show window after loaded
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // 窗口关闭时保存尺寸
+  // Save size when window closed
   mainWindow.on('close', () => {
     const bounds = mainWindow.getBounds();
     const config = loadConfig();
@@ -78,30 +78,30 @@ function createMainWindow() {
     saveConfig(config);
   });
 
-  // 窗口关闭时清理
+  // Cleanup when window closed
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 
-  // 创建应用菜单
+  // Create application menu
   createApplicationMenu();
 }
 
-// 创建应用菜单
+// Create application menu
 function createApplicationMenu() {
   const template = [
     {
-      label: '文件',
+      label: 'File',
       submenu: [
         {
-          label: '新建会话',
+          label: 'New Chat',
           accelerator: 'CmdOrCtrl+N',
           click: () => {
             mainWindow.webContents.send('menu-new-chat');
           }
         },
         {
-          label: '清除聊天记录',
+          label: 'Clear Chat History',
           accelerator: 'CmdOrCtrl+Shift+C',
           click: () => {
             mainWindow.webContents.send('menu-clear-chat');
@@ -109,7 +109,7 @@ function createApplicationMenu() {
         },
         { type: 'separator' },
         {
-          label: '退出',
+          label: 'Quit',
           accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
           click: () => {
             app.quit();
@@ -118,22 +118,22 @@ function createApplicationMenu() {
       ]
     },
     {
-      label: '编辑',
+      label: 'Edit',
       submenu: [
-        { role: 'undo', label: '撤销' },
-        { role: 'redo', label: '重做' },
+        { role: 'undo', label: 'Undo' },
+        { role: 'redo', label: 'Redo' },
         { type: 'separator' },
-        { role: 'cut', label: '剪切' },
-        { role: 'copy', label: '复制' },
-        { role: 'paste', label: '粘贴' },
-        { role: 'selectall', label: '全选' }
+        { role: 'cut', label: 'Cut' },
+        { role: 'copy', label: 'Copy' },
+        { role: 'paste', label: 'Paste' },
+        { role: 'selectall', label: 'Select All' }
       ]
     },
     {
-      label: '视图',
+      label: 'View',
       submenu: [
         {
-          label: '刷新',
+          label: 'Reload',
           accelerator: 'CmdOrCtrl+R',
           click: () => {
             mainWindow.webContents.reload();
@@ -141,31 +141,31 @@ function createApplicationMenu() {
         },
         { type: 'separator' },
         {
-          label: '开发者工具',
+          label: 'Developer Tools',
           accelerator: 'F12',
           click: () => {
             mainWindow.webContents.toggleDevTools();
           }
         },
         { type: 'separator' },
-        { role: 'resetzoom', label: '重置缩放' },
-        { role: 'zoomin', label: '放大' },
-        { role: 'zoomout', label: '缩小' },
+        { role: 'resetzoom', label: 'Reset Zoom' },
+        { role: 'zoomin', label: 'Zoom In' },
+        { role: 'zoomout', label: 'Zoom Out' },
         { type: 'separator' },
-        { role: 'togglefullscreen', label: '全屏' }
+        { role: 'togglefullscreen', label: 'Toggle Full Screen' }
       ]
     },
     {
-      label: '配置',
+      label: 'Configuration',
       submenu: [
         {
-          label: 'API设置',
+          label: 'API Settings',
           click: () => {
             mainWindow.webContents.send('menu-api-settings');
           }
         },
         {
-          label: '刷新配置',
+          label: 'Refresh Config',
           accelerator: 'CmdOrCtrl+Shift+R',
           click: () => {
             mainWindow.webContents.send('menu-refresh-config');
@@ -174,21 +174,21 @@ function createApplicationMenu() {
       ]
     },
     {
-      label: '帮助',
+      label: 'Help',
       submenu: [
         {
-          label: '关于',
+          label: 'About AI Agent Desktop',
           click: () => {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: '关于 AI Agent Desktop',
+              title: 'About AI Agent Desktop',
               message: 'AI Agent Desktop',
-              detail: '版本: 1.0.0\n基于 Electron 构建\n\n一个功能强大的 AI Agent 桌面客户端。'
+              detail: 'Version: 1.0.0\nBuilt with Electron\n\nA powerful AI Agent desktop client.'
             });
           }
         },
         {
-          label: 'GitHub 仓库',
+          label: 'GitHub Repository',
           click: () => {
             shell.openExternal('https://github.com/luoxiaojun1992/ai-agent');
           }
@@ -197,20 +197,20 @@ function createApplicationMenu() {
     }
   ];
 
-  // macOS 特殊处理
+  // macOS specific handling
   if (process.platform === 'darwin') {
     template.unshift({
       label: app.getName(),
       submenu: [
-        { role: 'about', label: '关于' },
+        { role: 'about', label: 'About' },
         { type: 'separator' },
-        { role: 'services', label: '服务' },
+        { role: 'services', label: 'Services' },
         { type: 'separator' },
-        { role: 'hide', label: '隐藏' },
-        { role: 'hideothers', label: '隐藏其他' },
-        { role: 'unhide', label: '显示全部' },
+        { role: 'hide', label: 'Hide' },
+        { role: 'hideothers', label: 'Hide Others' },
+        { role: 'unhide', label: 'Unhide All' },
         { type: 'separator' },
-        { role: 'quit', label: '退出' }
+        { role: 'quit', label: 'Quit' }
       ]
     });
   }
@@ -219,31 +219,31 @@ function createApplicationMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-// IPC 处理程序
+// IPC handlers
 
-// 获取配置
+// Get configuration
 ipcMain.handle('get-config', () => {
   return loadConfig();
 });
 
-// 保存配置
+// Save configuration
 ipcMain.handle('save-config', (event, config) => {
   saveConfig(config);
   return true;
 });
 
-// 打开外部链接
+// Open external link
 ipcMain.handle('open-external', (event, url) => {
   shell.openExternal(url);
 });
 
-// 显示保存对话框
+// Show save dialog
 ipcMain.handle('show-save-dialog', async (event, options) => {
   const result = await dialog.showSaveDialog(mainWindow, options);
   return result;
 });
 
-// 写入文件
+// Write file
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
     fs.writeFileSync(filePath, content, 'utf8');
@@ -253,13 +253,13 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
   }
 });
 
-// 应用生命周期
+// Application lifecycle
 
 app.whenReady().then(() => {
   createMainWindow();
 
   app.on('activate', () => {
-    // macOS: 点击dock图标时重新创建窗口
+    // macOS: recreate window when dock icon clicked
     if (mainWindow === null) {
       createMainWindow();
     }
@@ -267,20 +267,20 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  // macOS: 除非用户明确退出，否则保持应用运行
+  // macOS: keep app running unless user explicitly quits
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// 防止多开
+// Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   app.quit();
 } else {
   app.on('second-instance', (event, commandLine, workingDirectory) => {
-    // 当尝试运行第二个实例时，聚焦到第一个实例的窗口
+    // Focus first instance when trying to run second instance
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();

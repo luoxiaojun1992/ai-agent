@@ -1,30 +1,30 @@
 // AI Agent Desktop - Renderer Process
-// 复用现有Web UI功能并添加Electron桌面端特性
+// Reuse existing web UI features and add Electron desktop client capabilities
 
 const API_BASE = 'http://localhost:3001/api';
 let isLoading = false;
 let currentStreamController = null;
 let messageHistory = [];
 
-// 初始化
+// Initialize
 document.addEventListener('DOMContentLoaded', async function() {
-    // 加载配置
+    // Load configuration
     await loadConfig();
     
-    // 检查状态
+    // Check status
     checkStatus();
     
-    // 设置事件监听
+    // Setup event listeners
     setupEventListeners();
     
-    // 设置Electron菜单事件监听
+    // Setup Electron menu event listeners
     setupElectronListeners();
     
-    // 聚焦输入框
+    // Focus input field
     document.getElementById('messageInput').focus();
 });
 
-// 加载配置
+// Load configuration
 async function loadConfig() {
     try {
         if (window.electronAPI) {
@@ -38,16 +38,16 @@ async function loadConfig() {
     }
 }
 
-// 设置事件监听
+// Setup event listeners
 function setupEventListeners() {
-    // 输入框回车发送
+    // Input field enter to send
     document.getElementById('messageInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter' && !isLoading) {
             sendMessage();
         }
     });
     
-    // 流式模式指示器
+    // Streaming mode indicator
     document.querySelectorAll('input[name="chatMode"]').forEach(radio => {
         radio.addEventListener('change', function() {
             updateStreamIndicator(this.value === 'streaming');
@@ -55,32 +55,32 @@ function setupEventListeners() {
     });
 }
 
-// 设置Electron菜单事件监听
+// Setup Electron menu event listeners
 function setupElectronListeners() {
     if (!window.electronAPI) return;
     
-    // 新建会话
+    // New chat
     window.electronAPI.onMenuNewChat((event) => {
         clearChat();
     });
     
-    // 清除聊天
+    // Clear chat
     window.electronAPI.onMenuClearChat((event) => {
         clearChat();
     });
     
-    // API设置
+    // API settings
     window.electronAPI.onMenuApiSettings((event) => {
         showConfig();
     });
     
-    // 刷新配置
+    // Refresh config
     window.electronAPI.onMenuRefreshConfig((event) => {
         refreshConfig();
     });
 }
 
-// 更新流式模式指示器
+// Update streaming mode indicator
 function updateStreamIndicator(isStreaming) {
     const indicator = document.querySelector('.streaming-indicator');
     if (indicator) {
@@ -88,24 +88,24 @@ function updateStreamIndicator(isStreaming) {
     }
 }
 
-// 检查API状态
+// Check API status
 async function checkStatus() {
     try {
         const response = await fetch(`${API_BASE}/agent/status`);
         if (response.ok) {
             const data = await response.json();
-            updateStatus(true, '已连接');
+            updateStatus(true, 'Connected');
             refreshConfig();
         } else {
-            updateStatus(false, '连接失败');
+            updateStatus(false, 'Connection failed');
         }
     } catch (error) {
-        updateStatus(false, '未连接');
+        updateStatus(false, 'Disconnected');
         console.error('Status check error:', error);
     }
 }
 
-// 更新状态显示
+// Update status display
 function updateStatus(connected, text) {
     const dot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
@@ -116,7 +116,7 @@ function updateStatus(connected, text) {
     apiStatus.textContent = 'API: ' + text;
 }
 
-// 发送消息
+// Send message
 async function sendMessage() {
     const input = document.getElementById('messageInput');
     const message = input.value.trim();
@@ -127,11 +127,11 @@ async function sendMessage() {
     isLoading = true;
     updateUIState();
     
-    // 添加用户消息
+    // Add user message
     addMessage(message, 'user');
     input.value = '';
     
-    // 保存到历史记录
+    // Save to history
     messageHistory.push({ role: 'user', content: message });
     
     if (mode === 'streaming') {
@@ -144,7 +144,7 @@ async function sendMessage() {
     updateUIState();
 }
 
-// 发送阻塞模式消息
+// Send blocking mode message
 async function sendBlockingMessage(message) {
     try {
         const response = await fetch(`${API_BASE}/agent/chat`, {
@@ -163,15 +163,15 @@ async function sendBlockingMessage(message) {
             addMessage(data.response, 'agent');
             messageHistory.push({ role: 'agent', content: data.response });
         } else {
-            addMessage('错误：无法获取 AI 响应', 'agent', true);
+            addMessage('Error: Unable to get AI response', 'agent', true);
         }
     } catch (error) {
-        addMessage('错误：' + error.message, 'agent', true);
-        updateStatus(false, '连接错误');
+        addMessage('Error: ' + error.message, 'agent', true);
+        updateStatus(false, 'Connection error');
     }
 }
 
-// 发送流式消息
+// Send streaming message
 async function sendStreamingMessage(message) {
     try {
         const response = await fetch(`${API_BASE}/agent/chat`, {
@@ -186,11 +186,11 @@ async function sendStreamingMessage(message) {
         });
         
         if (!response.ok) {
-            addMessage('错误：无法启动流式响应', 'agent', true);
+            addMessage('Error: Unable to start streaming response', 'agent', true);
             return;
         }
         
-        // 创建流式消息元素
+        // Create streaming message element
         const messageElement = addStreamingMessage();
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -230,7 +230,7 @@ async function sendStreamingMessage(message) {
                                 currentStreamController = null;
                                 return;
                             } else if (eventType === 'error') {
-                                finalizeStreamingMessage(messageElement, null, '错误：' + (data.error || '未知错误'));
+                                finalizeStreamingMessage(messageElement, null, 'Error: ' + (data.error || 'Unknown error'));
                                 currentStreamController = null;
                                 return;
                             }
@@ -242,22 +242,22 @@ async function sendStreamingMessage(message) {
                 }
             }
         } catch (error) {
-            finalizeStreamingMessage(messageElement, null, '流式错误：' + error.message);
+            finalizeStreamingMessage(messageElement, null, 'Streaming error: ' + error.message);
         } finally {
             currentStreamController = null;
         }
         
     } catch (error) {
-        addMessage('错误：' + error.message, 'agent', true);
-        updateStatus(false, '连接错误');
+        addMessage('Error: ' + error.message, 'agent', true);
+        updateStatus(false, 'Connection error');
     }
 }
 
-// 添加消息到聊天区域
+// Add message to chat area
 function addMessage(content, sender, isError = false) {
     const chatMessages = document.getElementById('chatMessages');
     
-    // 移除欢迎消息
+    // Remove welcome message
     const welcomeMsg = chatMessages.querySelector('.welcome-message');
     if (welcomeMsg) {
         welcomeMsg.remove();
@@ -269,7 +269,7 @@ function addMessage(content, sender, isError = false) {
     const headerDiv = document.createElement('div');
     headerDiv.className = 'message-header';
     headerDiv.innerHTML = sender === 'user' 
-        ? '<span>我</span>'
+        ? '<span>Me</span>'
         : '<span class="avatar agent">🤖</span><span>AI Agent</span>';
     
     const bubbleDiv = document.createElement('div');
@@ -289,17 +289,17 @@ function addMessage(content, sender, isError = false) {
     messageDiv.appendChild(bubbleDiv);
     chatMessages.appendChild(messageDiv);
     
-    // 滚动到底部
+    // Scroll to bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
     return messageDiv;
 }
 
-// 添加流式消息
+// Add streaming message
 function addStreamingMessage() {
     const chatMessages = document.getElementById('chatMessages');
     
-    // 移除欢迎消息
+    // Remove welcome message
     const welcomeMsg = chatMessages.querySelector('.welcome-message');
     if (welcomeMsg) {
         welcomeMsg.remove();
@@ -329,7 +329,7 @@ function addStreamingMessage() {
     return { messageDiv, contentDiv };
 }
 
-// 更新流式消息
+// Update streaming message
 function updateStreamingMessage(messageElement, content) {
     messageElement.contentDiv.innerHTML = marked.parse(content) + '<span class="cursor">▋</span>';
     
@@ -337,7 +337,7 @@ function updateStreamingMessage(messageElement, content) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// 完成流式消息
+// Finalize streaming message
 function finalizeStreamingMessage(messageElement, content, error = null) {
     if (error) {
         messageElement.contentDiv.innerHTML = `<span style="color: #dc3545;">${error}</span>`;
@@ -345,14 +345,14 @@ function finalizeStreamingMessage(messageElement, content, error = null) {
         messageElement.contentDiv.innerHTML = marked.parse(content);
     }
     
-    // 移除流式指示器
+    // Remove streaming indicator
     const indicator = messageElement.messageDiv.querySelector('.streaming-indicator');
     if (indicator) {
         indicator.remove();
     }
 }
 
-// 更新UI状态
+// Update UI state
 function updateUIState() {
     const sendBtn = document.getElementById('sendBtn');
     const plannerBtn = document.getElementById('plannerBtn');
@@ -365,33 +365,33 @@ function updateUIState() {
         input.disabled = true;
     } else {
         sendBtn.disabled = false;
-        sendBtn.innerHTML = '发送';
+        sendBtn.innerHTML = 'Send';
         plannerBtn.disabled = false;
         input.disabled = false;
         input.focus();
     }
 }
 
-// 清除聊天
+// Clear chat
 function clearChat() {
     const chatMessages = document.getElementById('chatMessages');
     chatMessages.innerHTML = `
         <div class="welcome-message">
-            <h2>👋 欢迎使用 AI Agent Desktop</h2>
-            <p>这是一个功能强大的 AI Agent 桌面客户端。您可以与 AI 进行对话，使用各种技能，或者让 Agent Planner 帮您规划和执行任务。</p>
+            <h2>👋 Welcome to AI Agent Desktop</h2>
+            <p>This is a powerful AI Agent desktop client. You can chat with AI, use various skills, or let Agent Planner help you plan and execute tasks.</p>
         </div>
     `;
     
     messageHistory = [];
     
-    // 取消正在进行的流
+    // Cancel ongoing stream
     if (currentStreamController) {
         currentStreamController.cancelled = true;
         currentStreamController = null;
     }
 }
 
-// 运行 Agent Planner
+// Run Agent Planner
 async function runPlanner() {
     const input = document.getElementById('messageInput');
     const task = input.value.trim();
@@ -402,13 +402,13 @@ async function runPlanner() {
     }
     
     const mode = document.querySelector('input[name="chatMode"]:checked').value;
-    const plannerMessage = "请为以下任务创建详细计划，然后逐步执行。尽可能使用 MCP 技能。任务：" + task;
+    const plannerMessage = "Please create a detailed plan for the following task, then execute it step by step. Use MCP skills as much as possible. Task: " + task;
     
     isLoading = true;
     updateUIState();
     
-    // 添加用户消息
-    addMessage("执行计划任务：" + task, 'user');
+    // Add user message
+    addMessage("Execute plan task: " + task, 'user');
     messageHistory.push({ role: 'user', content: task });
     
     if (mode === 'streaming') {
@@ -422,7 +422,7 @@ async function runPlanner() {
     input.value = '';
 }
 
-// 刷新配置
+// Refresh config
 async function refreshConfig() {
     try {
         const response = await fetch(`${API_BASE}/agent/config`);
@@ -431,30 +431,30 @@ async function refreshConfig() {
             const configDisplay = document.getElementById('configDisplay');
             configDisplay.innerHTML = `
                 <div class="config-item">
-                    <label>聊天模型</label>
+                    <label>Chat Model</label>
                     <input type="text" value="${data.chatModel || 'N/A'}" readonly>
                 </div>
                 <div class="config-item">
-                    <label>嵌入模型</label>
+                    <label>Embedding Model</label>
                     <input type="text" value="${data.embeddingModel || 'N/A'}" readonly>
                 </div>
                 <div class="config-item">
-                    <label>模式</label>
+                    <label>Mode</label>
                     <input type="text" value="${data.agentMode || 'N/A'}" readonly>
                 </div>
                 <div class="config-item">
-                    <label>角色</label>
+                    <label>Role</label>
                     <input type="text" value="${data.character || 'N/A'}" readonly>
                 </div>
             `;
         }
     } catch (error) {
         document.getElementById('configDisplay').innerHTML = 
-            '<p style="color: #dc3545;">加载配置失败</p>';
+            '<p style="color: #dc3545;">Failed to load configuration</p>';
     }
 }
 
-// 清除内存
+// Clear memory
 async function clearMemory() {
     try {
         const response = await fetch(`${API_BASE}/agent/memory`, {
@@ -462,41 +462,41 @@ async function clearMemory() {
         });
         
         if (response.ok) {
-            showNotification('内存已清除', 'success');
+            showNotification('Memory cleared', 'success');
         } else {
-            showNotification('清除内存失败', 'error');
+            showNotification('Failed to clear memory', 'error');
         }
     } catch (error) {
-        showNotification('错误：' + error.message, 'error');
+        showNotification('Error: ' + error.message, 'error');
     }
 }
 
-// 刷新内存
+// Refresh memory
 async function refreshMemory() {
     try {
         const response = await fetch(`${API_BASE}/agent/memory`);
         if (response.ok) {
-            showNotification('内存已刷新', 'success');
+            showNotification('Memory refreshed', 'success');
         } else {
-            showNotification('刷新内存失败', 'error');
+            showNotification('Failed to refresh memory', 'error');
         }
     } catch (error) {
-        showNotification('错误：' + error.message, 'error');
+        showNotification('Error: ' + error.message, 'error');
     }
 }
 
-// 显示配置面板
+// Show config panel
 function showConfig() {
     document.getElementById('configPanel').classList.add('active');
     refreshConfig();
 }
 
-// 显示聊天区域
+// Show chat area
 function showChat() {
     document.getElementById('configPanel').classList.remove('active');
 }
 
-// 保存API配置
+// Save API configuration
 async function saveApiConfig() {
     const apiBase = document.getElementById('apiBaseInput').value.trim();
     
@@ -506,20 +506,20 @@ async function saveApiConfig() {
         await window.electronAPI.saveConfig(config);
     }
     
-    showNotification('配置已保存', 'success');
+    showNotification('Configuration saved', 'success');
     showChat();
     checkStatus();
 }
 
-// 导出聊天记录
+// Export chat history
 async function exportChat() {
     if (messageHistory.length === 0) {
-        showNotification('没有可导出的聊天记录', 'error');
+        showNotification('No chat history to export', 'error');
         return;
     }
     
     const content = messageHistory.map(m => {
-        const role = m.role === 'user' ? '用户' : 'AI Agent';
+        const role = m.role === 'user' ? 'User' : 'AI Agent';
         return `[${role}]\n${m.content}\n`;
     }).join('\n---\n\n');
     
@@ -527,21 +527,21 @@ async function exportChat() {
         const result = await window.electronAPI.showSaveDialog({
             defaultPath: `chat-export-${new Date().toISOString().slice(0, 10)}.txt`,
             filters: [
-                { name: '文本文件', extensions: ['txt'] },
-                { name: '所有文件', extensions: ['*'] }
+                { name: 'Text files', extensions: ['txt'] },
+                { name: 'All files', extensions: ['*'] }
             ]
         });
         
         if (!result.canceled && result.filePath) {
             const writeResult = await window.electronAPI.writeFile(result.filePath, content);
             if (writeResult.success) {
-                showNotification('聊天记录已导出', 'success');
+                showNotification('Chat history exported', 'success');
             } else {
-                showNotification('导出失败：' + writeResult.error, 'error');
+                showNotification('Export failed: ' + writeResult.error, 'error');
             }
         }
     } else {
-        // 浏览器环境：使用下载
+        // Browser environment: use download
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -552,9 +552,9 @@ async function exportChat() {
     }
 }
 
-// 显示通知
+// Show notification
 function showNotification(message, type = 'info') {
-    // 创建通知元素
+    // Create notification element
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
@@ -573,14 +573,14 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
-    // 3秒后移除
+    // Remove after 3 seconds
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
 }
 
-// 添加动画样式
+// Add animation styles
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {

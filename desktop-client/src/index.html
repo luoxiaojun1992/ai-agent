@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,7 +25,7 @@
             height: 100vh;
         }
 
-        /* 侧边栏 */
+        /* Sidebar */
         .sidebar {
             width: 260px;
             background: #1a1a2e;
@@ -129,7 +129,7 @@
             color: #888;
         }
 
-        /* 主内容区 */
+        /* Main content area */
         .main-content {
             flex: 1;
             display: flex;
@@ -137,7 +137,7 @@
             overflow: hidden;
         }
 
-        /* 顶部状态栏 */
+        /* Top status bar */
         .top-bar {
             background: white;
             padding: 15px 20px;
@@ -182,7 +182,7 @@
             50% { opacity: 0.5; }
         }
 
-        /* 聊天区域 */
+        /* Chat area */
         .chat-area {
             flex: 1;
             display: flex;
@@ -299,7 +299,7 @@
             50% { opacity: 0.3; }
         }
 
-        /* 输入区域 */
+        /* Input area */
         .input-area {
             background: white;
             border-top: 1px solid #e0e0e0;
@@ -438,7 +438,7 @@
             to { transform: rotate(360deg); }
         }
 
-        /* 配置面板 */
+        /* Config panel */
         .config-panel {
             display: none;
             background: white;
@@ -532,7 +532,7 @@
             background: #e8e8e8;
         }
 
-        /* 滚动条样式 */
+        /* Scrollbar styles */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -551,7 +551,7 @@
             background: #999;
         }
 
-        /* 代码块样式 */
+        /* Code block styles */
         .message-content pre {
             background: #f5f5f5;
             padding: 12px;
@@ -578,7 +578,7 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- 侧边栏 -->
+        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <h1>
@@ -587,54 +587,54 @@
                 </h1>
             </div>
             <button class="new-chat-btn" onclick="clearChat()">
-                <span>+</span> 新建会话
+                <span>+</span> New Chat
             </button>
             <nav class="sidebar-nav">
                 <div class="nav-section">
-                    <div class="nav-section-title">功能</div>
+                    <div class="nav-section-title">Features</div>
                     <div class="nav-item active" onclick="showChat()">
-                        <span class="icon">💬</span> 聊天
+                        <span class="icon">💬</span> Chat
                     </div>
                     <div class="nav-item" onclick="showConfig()">
-                        <span class="icon">⚙️</span> 配置
+                        <span class="icon">⚙️</span> Config
                     </div>
                     <div class="nav-item" onclick="runPlanner()">
                         <span class="icon">📋</span> Agent Planner
                     </div>
                 </div>
                 <div class="nav-section">
-                    <div class="nav-section-title">内存</div>
+                    <div class="nav-section-title">Memory</div>
                     <div class="nav-item" onclick="refreshMemory()">
-                        <span class="icon">🔄</span> 刷新内存
+                        <span class="icon">🔄</span> Refresh Memory
                     </div>
                     <div class="nav-item" onclick="clearMemory()">
-                        <span class="icon">🗑️</span> 清除内存
+                        <span class="icon">🗑️</span> Clear Memory
                     </div>
                 </div>
             </nav>
             <div class="sidebar-footer">
                 <div id="version-info">v1.0.0</div>
-                <div id="api-status">API: 未连接</div>
+                <div id="api-status">API: Disconnected</div>
             </div>
         </aside>
 
-        <!-- 主内容区 -->
+        <!-- Main content area -->
         <main class="main-content">
-            <!-- 顶部状态栏 -->
+            <!-- Top status bar -->
             <header class="top-bar">
-                <div class="top-bar-title">AI Agent 聊天界面</div>
+                <div class="top-bar-title">AI Agent Chat Interface</div>
                 <div class="status-indicator">
                     <span class="status-dot" id="statusDot"></span>
-                    <span id="statusText">连接中...</span>
+                    <span id="statusText">Connecting...</span>
                 </div>
             </header>
 
-            <!-- 聊天区域 -->
+            <!-- Chat area -->
             <div class="chat-area" id="chatArea">
                 <div class="chat-messages" id="chatMessages">
                     <div class="welcome-message">
-                        <h2>👋 欢迎使用 AI Agent Desktop</h2>
-                        <p>这是一个功能强大的 AI Agent 桌面客户端。您可以与 AI 进行对话，使用各种技能，或者让 Agent Planner 帮您规划和执行任务。</p>
+                        <h2>👋 Welcome to AI Agent Desktop</h2>
+                        <p>This is a powerful AI Agent desktop client. You can chat with AI, use various skills, or let Agent Planner help you plan and execute tasks.</p>
                     </div>
                 </div>
                 <div class="input-area">
@@ -642,53 +642,53 @@
                         <div class="mode-selector">
                             <label>
                                 <input type="radio" name="chatMode" value="blocking" checked>
-                                <span>阻塞模式</span>
+                                <span>Blocking Mode</span>
                             </label>
                             <label>
                                 <input type="radio" name="chatMode" value="streaming">
-                                <span>流式模式</span>
+                                <span>Streaming Mode</span>
                             </label>
                         </div>
                         <button class="toolbar-btn primary" id="plannerBtn" onclick="runPlanner()">
                             📋 Agent Planner
                         </button>
                         <button class="toolbar-btn" onclick="exportChat()">
-                            💾 导出对话
+                            💾 Export Chat
                         </button>
                     </div>
                     <div class="input-group">
                         <input type="text" class="message-input" id="messageInput" 
-                               placeholder="输入消息..." maxlength="2000">
+                               placeholder="Enter message..." maxlength="2000">
                         <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-                            发送
+                            Send
                         </button>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- 配置面板 -->
+        <!-- Config panel -->
         <aside class="config-panel" id="configPanel">
             <div class="config-header">
-                <h3>⚙️ 配置设置</h3>
+                <h3>⚙️ Configuration Settings</h3>
             </div>
             <div class="config-section">
-                <h4>API 设置</h4>
+                <h4>API Settings</h4>
                 <div class="config-item">
-                    <label>API 基础地址</label>
+                    <label>API Base URL</label>
                     <input type="text" id="apiBaseInput" value="http://localhost:3001/api" 
                            placeholder="http://localhost:3001/api">
                 </div>
             </div>
             <div class="config-section">
-                <h4>当前配置</h4>
+                <h4>Current Configuration</h4>
                 <div id="configDisplay">
-                    <p style="color: #888; font-size: 13px;">点击刷新获取配置信息</p>
+                    <p style="color: #888; font-size: 13px;">Click refresh to get configuration info</p>
                 </div>
             </div>
             <div class="config-actions">
-                <button class="config-btn secondary" onclick="showChat()">取消</button>
-                <button class="config-btn primary" onclick="saveApiConfig()">保存</button>
+                <button class="config-btn secondary" onclick="showChat()">Cancel</button>
+                <button class="config-btn primary" onclick="saveApiConfig()">Save</button>
             </div>
         </aside>
     </div>
