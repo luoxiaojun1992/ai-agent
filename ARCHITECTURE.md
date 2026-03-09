@@ -2,6 +2,9 @@
 graph TB
     A[User<br/>Web Browser] -->|HTTP| B(Frontend<br/>Nginx)
     B -->|API Calls| C[UI Backend<br/>Node.js]
+    
+    A2[User<br/>Desktop Client<br/>Electron] -->|IPC/API| C[UI Backend<br/>Node.js]
+    
     C -->|Service API| D[AI Agent<br/>Go Service]
     
     D -->|AI Models| E[Ollama]
@@ -28,6 +31,7 @@ graph TB
     P --> D
     
     style A fill:#e1f5fe,stroke:#01579b
+    style A2 fill:#e1f5fe,stroke:#01579b
     style B fill:#bbdefb,stroke:#0d47a1
     style C fill:#9fa8da,stroke:#303f9f,color:#fff
     style D fill:#9370db,stroke:#4a148c,color:#fff
