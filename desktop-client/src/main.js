@@ -8,6 +8,9 @@ let mainWindow;
 // Configuration file path
 const configPath = path.join(app.getPath('userData'), 'config.json');
 
+// Scheduled tasks file path
+const scheduledTasksPath = path.join(app.getPath('userData'), 'scheduled-tasks.json');
+
 // Default configuration
 const defaultConfig = {
   apiBase: 'http://localhost:3001/api',
@@ -15,6 +18,15 @@ const defaultConfig = {
   windowHeight: 900,
   theme: 'light'
 };
+
+// Default scheduled task structure
+const defaultScheduledTasks = {
+  tasks: []
+};
+
+// Scheduled tasks storage
+let scheduledTasks = { tasks: [] };
+let taskSchedulers = new Map();
 
 // Load configuration
 function loadConfig() {
@@ -36,6 +48,188 @@ function saveConfig(config) {
   } catch (error) {
     console.error('Error saving config:', error);
   }
+}
+
+// Load scheduled tasks
+function loadScheduledTasks() {
+  try {
+    if (fs.existsSync(scheduledTasksPath)) {
+      const data = fs.readFileSync(scheduledTasksPath, 'utf8');
+      scheduledTasks = JSON.parse(data);
+      console.log('Scheduled tasks loaded:', scheduledTasks.tasks.length);
+    }
+  } catch (error) {
+    console.error('Error loading scheduled tasks:', error);
+    scheduledTasks = { tasks: [] };
+  }
+  return scheduledTasks;
+}
+
+// Save scheduled tasks
+function saveScheduledTasks(tasksData) {
+  try {
+    fs.writeFileSync(scheduledTasksPath, JSON.stringify(tasksData, null, 2));
+    scheduledTasks = tasksData;
+  } catch (error) {
+    console.error('Error saving scheduled tasks:', error);
+  }
+}
+
+// Start a scheduled task
+function startScheduledTask(task) {
+  if (taskSchedulers.has(task.id)) {
+    // Already running
+    return;
+  }
+
+  if (!task.enabled) {
+    console.log(`Task ${task.id} is disabled, not starting`);
+    return;
+  }
+
+  const config = loadConfig();
+  const apiBase = config.apiBase || 'http://localhost:3001/api';
+
+  let intervalMs;
+
+  // Parse schedule interval
+  switch (task.scheduleType) {
+    case 'interval':
+      intervalMs = task.intervalMinutes * 60 * 1000;
+      break;
+    case 'hourly':
+      intervalMs = 60 * 60 * 1000;
+      break;
+    case 'daily':
+      intervalMs = 24 * 60 * 60 * 1000;
+      break;
+    case 'weekly':
+      intervalMs = 7 * 24 * 60 * 60 * 1000;
+      break;
+    default:
+      intervalMs = task.intervalMinutes * 60 * 1000;
+  }
+
+  const executeTask = async () => {
+    console.log(`Executing scheduled task: ${task.name}`);
+    try {
+      const response = await fetch(`${apiBase}/agent/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: task.message,
+          stream: false
+        })
+      });
+
+      let result = '';
+      if (response.ok) {
+        const data = await response.json();
+        result = data.response || 'Task executed successfully';
+      } else {
+        result = `Error: HTTP ${response.status}`;
+      }
+
+      // Notify renderer process
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scheduled-task-executed', {
+          taskId: task.id,
+          taskName: task.name,
+          result: result,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Save task execution history
+      saveTaskExecutionHistory(task.id, result);
+
+    } catch (error) {
+      console.error(`Error executing task ${task.id}:`, error);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scheduled-task-executed', {
+          taskId: task.id,
+          taskName: task.name,
+          result: 'Error: ' + error.message,
+          timestamp: new Date().toISOString(),
+          isError: true
+        });
+      }
+    }
+  };
+
+  // Start the interval
+  const intervalId = setInterval(executeTask, intervalMs);
+  taskSchedulers.set(task.id, { intervalId, task });
+
+  // Execute immediately for first time if enabled
+  if (task.executeImmediately) {
+    setTimeout(executeTask, 1000);
+  }
+
+  console.log(`Started scheduled task: ${task.name} with interval: ${intervalMs}ms`);
+}
+
+// Stop a scheduled task
+function stopScheduledTask(taskId) {
+  const scheduler = taskSchedulers.get(taskId);
+  if (scheduler) {
+    clearInterval(scheduler.intervalId);
+    taskSchedulers.delete(taskId);
+    console.log(`Stopped scheduled task: ${taskId}`);
+  }
+}
+
+// Initialize all scheduled tasks
+function initializeScheduledTasks() {
+  const tasksData = loadScheduledTasks();
+  tasksData.tasks.forEach(task => {
+    if (task.enabled) {
+      startScheduledTask(task);
+    }
+  });
+  console.log(`Initialized ${tasksData.tasks.filter(t => t.enabled).length} scheduled tasks`);
+}
+
+// Task execution history
+const taskHistoryPath = path.join(app.getPath('userData'), 'task-history.json');
+
+function saveTaskExecutionHistory(taskId, result) {
+  try {
+    let history = [];
+    if (fs.existsSync(taskHistoryPath)) {
+      const data = fs.readFileSync(taskHistoryPath, 'utf8');
+      history = JSON.parse(data);
+    }
+
+    history.unshift({
+      taskId,
+      result,
+      timestamp: new Date().toISOString()
+    });
+
+    // Keep only last 100 entries
+    if (history.length > 100) {
+      history = history.slice(0, 100);
+    }
+
+    fs.writeFileSync(taskHistoryPath, JSON.stringify(history, null, 2));
+  } catch (error) {
+    console.error('Error saving task execution history:', error);
+  }
+}
+
+function getTaskHistory() {
+  try {
+    if (fs.existsSync(taskHistoryPath)) {
+      const data = fs.readFileSync(taskHistoryPath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading task history:', error);
+  }
+  return [];
 }
 
 // Create main window
@@ -253,10 +447,149 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
   }
 });
 
+// Scheduled tasks handlers
+
+// Get all scheduled tasks
+ipcMain.handle('get-scheduled-tasks', () => {
+  return loadScheduledTasks();
+});
+
+// Save scheduled tasks
+ipcMain.handle('save-scheduled-tasks', (event, tasksData) => {
+  saveScheduledTasks(tasksData);
+  return { success: true };
+});
+
+// Add a new scheduled task
+ipcMain.handle('add-scheduled-task', (event, task) => {
+  const tasksData = loadScheduledTasks();
+  task.id = Date.now().toString();
+  task.createdAt = new Date().toISOString();
+  tasksData.tasks.push(task);
+  saveScheduledTasks(tasksData);
+
+  if (task.enabled) {
+    startScheduledTask(task);
+  }
+
+  return { success: true, task };
+});
+
+// Update a scheduled task
+ipcMain.handle('update-scheduled-task', (event, task) => {
+  const tasksData = loadScheduledTasks();
+  const index = tasksData.tasks.findIndex(t => t.id === task.id);
+
+  if (index !== -1) {
+    // Stop existing scheduler if running
+    stopScheduledTask(task.id);
+
+    tasksData.tasks[index] = { ...tasksData.tasks[index], ...task };
+    saveScheduledTasks(tasksData);
+
+    // Start if enabled
+    if (task.enabled) {
+      startScheduledTask(tasksData.tasks[index]);
+    }
+
+    return { success: true };
+  }
+
+  return { success: false, error: 'Task not found' };
+});
+
+// Delete a scheduled task
+ipcMain.handle('delete-scheduled-task', (event, taskId) => {
+  stopScheduledTask(taskId);
+
+  const tasksData = loadScheduledTasks();
+  tasksData.tasks = tasksData.tasks.filter(t => t.id !== taskId);
+  saveScheduledTasks(tasksData);
+
+  return { success: true };
+});
+
+// Toggle scheduled task enabled/disabled
+ipcMain.handle('toggle-scheduled-task', (event, taskId) => {
+  const tasksData = loadScheduledTasks();
+  const task = tasksData.tasks.find(t => t.id === taskId);
+
+  if (task) {
+    task.enabled = !task.enabled;
+    saveScheduledTasks(tasksData);
+
+    if (task.enabled) {
+      startScheduledTask(task);
+    } else {
+      stopScheduledTask(taskId);
+    }
+
+    return { success: true, enabled: task.enabled };
+  }
+
+  return { success: false, error: 'Task not found' };
+});
+
+// Get task execution history
+ipcMain.handle('get-task-history', () => {
+  return getTaskHistory();
+});
+
+// Manually execute a scheduled task
+ipcMain.handle('execute-scheduled-task', async (event, taskId) => {
+  const tasksData = loadScheduledTasks();
+  const task = tasksData.tasks.find(t => t.id === taskId);
+
+  if (!task) {
+    return { success: false, error: 'Task not found' };
+  }
+
+  const config = loadConfig();
+  const apiBase = config.apiBase || 'http://localhost:3001/api';
+
+  try {
+    const response = await fetch(`${apiBase}/agent/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: task.message,
+        stream: false
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const result = data.response || 'Task executed successfully';
+
+      // Notify renderer
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('scheduled-task-executed', {
+          taskId: task.id,
+          taskName: task.name,
+          result: result,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      saveTaskExecutionHistory(task.id, result);
+      return { success: true, result };
+    } else {
+      return { success: false, error: `HTTP ${response.status}` };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Application lifecycle
 
 app.whenReady().then(() => {
   createMainWindow();
+
+  // Initialize scheduled tasks after window is created
+  initializeScheduledTasks();
 
   app.on('activate', () => {
     // macOS: recreate window when dock icon clicked

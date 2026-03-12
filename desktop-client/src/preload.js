@@ -5,20 +5,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Configuration related
   getConfig: () => ipcRenderer.invoke('get-config'),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
-  
+
   // External links
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
-  
+
   // File operations
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
   writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
-  
+
+  // Scheduled tasks
+  getScheduledTasks: () => ipcRenderer.invoke('get-scheduled-tasks'),
+  saveScheduledTasks: (tasksData) => ipcRenderer.invoke('save-scheduled-tasks', tasksData),
+  addScheduledTask: (task) => ipcRenderer.invoke('add-scheduled-task', task),
+  updateScheduledTask: (task) => ipcRenderer.invoke('update-scheduled-task', task),
+  deleteScheduledTask: (taskId) => ipcRenderer.invoke('delete-scheduled-task', taskId),
+  toggleScheduledTask: (taskId) => ipcRenderer.invoke('toggle-scheduled-task', taskId),
+  executeScheduledTask: (taskId) => ipcRenderer.invoke('execute-scheduled-task', taskId),
+  getTaskHistory: () => ipcRenderer.invoke('get-task-history'),
+
+  // Scheduled task execution listener
+  onScheduledTaskExecuted: (callback) => ipcRenderer.on('scheduled-task-executed', (event, data) => callback(data)),
+  removeScheduledTaskListener: () => ipcRenderer.removeAllListeners('scheduled-task-executed'),
+
   // Menu event listeners
   onMenuNewChat: (callback) => ipcRenderer.on('menu-new-chat', callback),
   onMenuClearChat: (callback) => ipcRenderer.on('menu-clear-chat', callback),
   onMenuApiSettings: (callback) => ipcRenderer.on('menu-api-settings', callback),
   onMenuRefreshConfig: (callback) => ipcRenderer.on('menu-refresh-config', callback),
-  
+
   // Remove listeners
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel)
 });

@@ -10,16 +10,21 @@ let messageHistory = [];
 document.addEventListener('DOMContentLoaded', async function() {
     // Load configuration
     await loadConfig();
-    
+
     // Check status
     checkStatus();
-    
+
     // Setup event listeners
     setupEventListeners();
-    
+
     // Setup Electron menu event listeners
     setupElectronListeners();
-    
+
+    // Initialize scheduled tasks (Electron only)
+    if (window.electronAPI) {
+        await initScheduledTasks();
+    }
+
     // Focus input field
     document.getElementById('messageInput').focus();
 });
@@ -494,6 +499,9 @@ function showConfig() {
 // Show chat area
 function showChat() {
     document.getElementById('configPanel').classList.remove('active');
+    document.getElementById('scheduledTasksPanel').classList.remove('active');
+    document.getElementById('chatArea').style.display = 'flex';
+    document.querySelector('.top-bar').style.display = 'flex';
 }
 
 // Save API configuration
@@ -600,3 +608,290 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// ==========================================
+// Scheduled Tasks Functions
+// ==========================================
+
+// Initialize scheduled tasks on load
+async function initScheduledTasks() {
+    if (window.electronAPI) {
+        // Setup listener for scheduled task execution events
+        window.electronAPI.onScheduledTaskExecuted((data) => {
+            showScheduledTaskNotification(data);
+            refreshTaskHistory();
+        });
+
+        // Load scheduled tasks
+        await loadScheduledTasks();
+
+        // Load task history
+        await refreshTaskHistory();
+    }
+}
+
+// Show scheduled tasks panel
+function showScheduledTasks() {
+    // Update sidebar navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.target.closest('.nav-item')?.classList.add('active');
+
+    // Hide other panels
+    document.getElementById('configPanel').classList.remove('active');
+
+    // Show scheduled tasks panel
+    document.getElementById('scheduledTasksPanel').classList.add('active');
+
+    // Hide chat area
+    document.getElementById('chatArea').style.display = 'none';
+    document.querySelector('.top-bar').style.display = 'none';
+
+    // Load tasks
+    loadScheduledTasks();
+    refreshTaskHistory();
+}
+
+// Show chat area (called from scheduled tasks panel)
+function returnToChat() {
+    document.getElementById('scheduledTasksPanel').classList.remove('active');
+    document.getElementById('chatArea').style.display = 'flex';
+    document.querySelector('.top-bar').style.display = 'flex';
+
+    // Update sidebar
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector('.nav-item[onclick="showChat()"]')?.classList.add('active');
+}
+
+// Toggle interval input based on schedule type
+function toggleIntervalInput() {
+    const scheduleType = document.getElementById('taskScheduleType').value;
+    const intervalContainer = document.getElementById('intervalContainer');
+
+    if (scheduleType === 'interval') {
+        intervalContainer.style.display = 'block';
+    } else {
+        intervalContainer.style.display = 'none';
+    }
+}
+
+// Load scheduled tasks
+async function loadScheduledTasks() {
+    if (!window.electronAPI) return;
+
+    try {
+        const tasksData = await window.electronAPI.getScheduledTasks();
+        renderScheduledTasks(tasksData.tasks || []);
+    } catch (error) {
+        console.error('Error loading scheduled tasks:', error);
+    }
+}
+
+// Render scheduled tasks list
+function renderScheduledTasks(tasks) {
+    const container = document.getElementById('scheduledTasksList');
+
+    if (!tasks || tasks.length === 0) {
+        container.innerHTML = '<p style="color: #888; font-size: 13px;">No scheduled tasks yet</p>';
+        return;
+    }
+
+    container.innerHTML = tasks.map(task => `
+        <div class="task-item" data-task-id="${task.id}">
+            <div class="task-item-header">
+                <span class="task-item-name">${escapeHtml(task.name)}</span>
+                <span class="task-item-status ${task.enabled ? 'enabled' : 'disabled'}">
+                    ${task.enabled ? 'Active' : 'Paused'}
+                </span>
+            </div>
+            <div class="task-item-message">${escapeHtml(task.message)}</div>
+            <div class="task-item-schedule">
+                Schedule: ${getScheduleLabel(task)}
+            </div>
+            <div class="task-item-actions">
+                <button class="task-action-btn ${task.enabled ? 'stop' : 'play'}"
+                        onclick="toggleScheduledTask('${task.id}')">
+                    ${task.enabled ? 'Pause' : 'Resume'}
+                </button>
+                <button class="task-action-btn run" onclick="runScheduledTask('${task.id}')">
+                    Run Now
+                </button>
+                <button class="task-action-btn delete" onclick="deleteScheduledTask('${task.id}')">
+                    Delete
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Get schedule label
+function getScheduleLabel(task) {
+    switch (task.scheduleType) {
+        case 'interval':
+            return `Every ${task.intervalMinutes} minutes`;
+        case 'hourly':
+            return 'Hourly';
+        case 'daily':
+            return 'Daily';
+        case 'weekly':
+            return 'Weekly';
+        default:
+            return 'Unknown';
+    }
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Add new scheduled task
+async function addScheduledTask() {
+    if (!window.electronAPI) {
+        showNotification('Electron API not available', 'error');
+        return;
+    }
+
+    const name = document.getElementById('taskName').value.trim();
+    const message = document.getElementById('taskMessage').value.trim();
+    const scheduleType = document.getElementById('taskScheduleType').value;
+    const intervalMinutes = parseInt(document.getElementById('taskInterval').value) || 60;
+    const executeImmediately = document.getElementById('taskExecuteImmediately').checked;
+
+    if (!name) {
+        showNotification('Please enter a task name', 'error');
+        return;
+    }
+
+    if (!message) {
+        showNotification('Please enter a message', 'error');
+        return;
+    }
+
+    const task = {
+        name,
+        message,
+        scheduleType,
+        intervalMinutes,
+        executeImmediately,
+        enabled: true
+    };
+
+    try {
+        const result = await window.electronAPI.addScheduledTask(task);
+        if (result.success) {
+            showNotification('Task created successfully', 'success');
+            // Clear form
+            document.getElementById('taskName').value = '';
+            document.getElementById('taskMessage').value = '';
+            document.getElementById('taskInterval').value = '60';
+            document.getElementById('taskExecuteImmediately').checked = false;
+            // Reload tasks
+            await loadScheduledTasks();
+        } else {
+            showNotification('Failed to create task', 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Toggle scheduled task enabled/disabled
+async function toggleScheduledTask(taskId) {
+    if (!window.electronAPI) return;
+
+    try {
+        const result = await window.electronAPI.toggleScheduledTask(taskId);
+        if (result.success) {
+            showNotification(`Task ${result.enabled ? 'enabled' : 'disabled'}`, 'info');
+            await loadScheduledTasks();
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Run scheduled task manually
+async function runScheduledTask(taskId) {
+    if (!window.electronAPI) return;
+
+    try {
+        const result = await window.electronAPI.executeScheduledTask(taskId);
+        if (result.success) {
+            showNotification('Task executed', 'success');
+            await refreshTaskHistory();
+        } else {
+            showNotification('Error: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Delete scheduled task
+async function deleteScheduledTask(taskId) {
+    if (!window.electronAPI) return;
+
+    if (!confirm('Are you sure you want to delete this task?')) {
+        return;
+    }
+
+    try {
+        const result = await window.electronAPI.deleteScheduledTask(taskId);
+        if (result.success) {
+            showNotification('Task deleted', 'success');
+            await loadScheduledTasks();
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+// Refresh task history
+async function refreshTaskHistory() {
+    if (!window.electronAPI) return;
+
+    try {
+        const history = await window.electronAPI.getTaskHistory();
+        renderTaskHistory(history);
+    } catch (error) {
+        console.error('Error loading task history:', error);
+    }
+}
+
+// Render task history
+function renderTaskHistory(history) {
+    const container = document.getElementById('taskHistoryList');
+
+    if (!history || history.length === 0) {
+        container.innerHTML = '<p style="color: #888; font-size: 13px;">No execution history</p>';
+        return;
+    }
+
+    container.innerHTML = history.slice(0, 10).map(item => `
+        <div class="history-item ${item.isError ? 'error' : ''}">
+            <div class="history-item-header">
+                <span>${item.taskId}</span>
+                <span>${formatDate(item.timestamp)}</span>
+            </div>
+            <div class="history-item-result">${escapeHtml(item.result || item.result)}</div>
+        </div>
+    `).join('');
+}
+
+// Format date
+function formatDate(isoString) {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    return date.toLocaleString();
+}
+
+// Show notification when scheduled task is executed
+function showScheduledTaskNotification(data) {
+    showNotification(`Task "${data.taskName}" executed`, 'info');
+}
