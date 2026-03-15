@@ -1,6 +1,3 @@
-# Test
-test/playwright-report
-
 # Playground
 playground/*
 !playground/.gitkeep
