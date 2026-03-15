@@ -1,6 +1,4 @@
 # Test
-tests/test-results
-tests/node_modules
 test/playwright-report
 
 # Playground
