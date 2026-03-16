@@ -92,3 +92,30 @@ func TestEmbedding_Do_InvalidParams(t *testing.T) {
 		t.Fatalf("expected invalid params error")
 	}
 }
+
+func TestEmbedding_Do_MissingAndTypeErrors(t *testing.T) {
+	e := &Embedding{OllamaCli: &mockOllamaClient{}}
+	if err := e.Do(context.Background(), map[string]any{"content": "hello"}, nil); err == nil {
+		t.Fatalf("expected missing model error")
+	}
+	if err := e.Do(context.Background(), map[string]any{"model": 1, "content": "hello"}, nil); err == nil {
+		t.Fatalf("expected model type error")
+	}
+	if err := e.Do(context.Background(), map[string]any{"model": "m"}, nil); err == nil {
+		t.Fatalf("expected missing content error")
+	}
+	if err := e.Do(context.Background(), map[string]any{"model": "m", "content": 1}, nil); err == nil {
+		t.Fatalf("expected content type error")
+	}
+}
+
+func TestEmbedding_Do_CallbackError(t *testing.T) {
+	expected := errors.New("callback error")
+	e := &Embedding{OllamaCli: &mockOllamaClient{resp: &ollamaPKG.EmbedResponse{Embeddings: [][]float32{{0.1}}}}}
+	err := e.Do(context.Background(), map[string]any{"model": "m", "content": "hello"}, func(any) (any, error) {
+		return nil, expected
+	})
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected callback error, got: %v", err)
+	}
+}

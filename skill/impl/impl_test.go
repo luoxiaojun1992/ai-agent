@@ -10,7 +10,9 @@ import (
 
 	ai_agent "github.com/luoxiaojun1992/ai-agent"
 	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
+	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
 	mcpPkg "github.com/luoxiaojun1992/ai-agent/pkg/mcp"
+	"github.com/luoxiaojun1992/ai-agent/pkg/ollama"
 )
 
 type mockHTTPClient struct {
@@ -249,3 +251,89 @@ func TestTeam_Do_MemberNotStringAndMessageNotString(t *testing.T) {
 		t.Fatalf("expected message type error")
 	}
 }
+
+type mockTeamOllamaClient struct{}
+
+func (m *mockTeamOllamaClient) EmbeddingPrompt(embedReq *ollama.EmbedRequest) (*ollama.EmbedResponse, error) {
+	_ = embedReq
+	return &ollama.EmbedResponse{Embeddings: [][]float32{}}, nil
+}
+
+func (m *mockTeamOllamaClient) Talk(chatReq *ollama.ChatRequest, callback func(response string) error) error {
+	_ = chatReq
+	if callback != nil {
+		return callback("member-response")
+	}
+	return nil
+}
+
+type mockTeamMilvusClient struct{}
+
+func (m *mockTeamMilvusClient) InsertVector(ctx context.Context, collectionName, content string, vector []float32) error {
+	_, _, _, _ = ctx, collectionName, content, vector
+	return nil
+}
+
+func (m *mockTeamMilvusClient) SearchVector(ctx context.Context, collectionName string, vector []float32) ([]string, error) {
+	_, _, _ = ctx, collectionName, vector
+	return nil, nil
+}
+
+func (m *mockTeamMilvusClient) Close() error { return nil }
+
+func TestTeam_Do_Success(t *testing.T) {
+	config := &ai_agent.Config{
+		ChatModel:        "m",
+		SupervisorModel:  "m",
+		EmbeddingModel:   "e",
+		MilvusCollection: "c",
+		AgentMode:        ai_agent.AgentModeChat,
+	}
+	agent, err := ai_agent.NewAgent(context.Background(), func(option *ai_agent.AgentOption) {
+		option.SetConfig(config)
+		option.SetOllamaCli(&mockTeamOllamaClient{})
+		option.SetMilvusCli(&mockTeamMilvusClient{})
+		option.SetHttpCli(&mockHTTPClient{})
+		option.SetCharacter("agent")
+		option.SetRole("assistant")
+	})
+	if err != nil {
+		t.Fatalf("unexpected NewAgent error: %v", err)
+	}
+
+	member, err := ai_agent.NewAgentDouble(context.Background(), func(option *ai_agent.AgentDoubleOption) {
+		option.SetConfig(config)
+		option.SetAgent(agent)
+		option.SetCharacter("member")
+		option.SetRole("assistant")
+	})
+	if err != nil {
+		t.Fatalf("unexpected NewAgentDouble error: %v", err)
+	}
+
+	team := &Team{Members: map[string]*ai_agent.AgentDouble{"m": member}}
+	called := false
+	err = team.Do(context.Background(), map[string]any{"member": "m", "message": "hello"}, func(output any) (any, error) {
+		called = true
+		if _, ok := output.(string); !ok {
+			t.Fatalf("expected string callback output, got %T", output)
+		}
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected Team.Do error: %v", err)
+	}
+	if !called {
+		t.Fatalf("expected callback to be called")
+	}
+
+	desc, err := team.GetDescription()
+	if err != nil {
+		t.Fatalf("unexpected Team.GetDescription error: %v", err)
+	}
+	if !strings.Contains(desc, "assistant") {
+		t.Fatalf("expected team description to include member description")
+	}
+}
+
+var _ milvus.IClient = (*mockTeamMilvusClient)(nil)

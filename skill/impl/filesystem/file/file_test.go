@@ -150,6 +150,16 @@ func TestWriter_Do_PathNotString(t *testing.T) {
 	}
 }
 
+func TestWriter_Do_InvalidParamsAndMissingContent(t *testing.T) {
+	w := &Writer{RootDir: t.TempDir()}
+	if err := w.Do(context.Background(), "bad", nil); err == nil {
+		t.Fatalf("expected invalid params error")
+	}
+	if err := w.Do(context.Background(), map[string]any{"path": "x"}, nil); err == nil {
+		t.Fatalf("expected missing content error")
+	}
+}
+
 func TestRemover_Do_InvalidParams(t *testing.T) {
 	r := &Remover{}
 	if err := r.Do(context.Background(), "bad", nil); err == nil {
@@ -171,10 +181,20 @@ func TestRemover_Do_EmptyPath(t *testing.T) {
 	}
 }
 
-func TestValidateRemovePath_SystemDir(t *testing.T) {
-	err := validateRemovePath("/proc/test-nonexistent")
+func TestValidateRemovePath_CurrentDir(t *testing.T) {
+	err := validateRemovePath(".")
 	if err == nil {
-		t.Fatalf("expected system dir rejection error")
+		t.Fatalf("expected current directory rejection error")
+	}
+	if !strings.Contains(err.Error(), "current directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateRemovePath_SystemDirPrefix(t *testing.T) {
+	err := validateRemovePath("/dev/null")
+	if err == nil {
+		t.Fatalf("expected system directory rejection error")
 	}
 	if !strings.Contains(err.Error(), "system") {
 		t.Fatalf("unexpected error: %v", err)

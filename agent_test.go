@@ -498,6 +498,19 @@ func TestNewAgent_DefaultOllamaClient(t *testing.T) {
 	}
 }
 
+func TestNewAgent_DefaultMilvusClientError(t *testing.T) {
+	_, err := NewAgent(context.Background(), func(opt *AgentOption) {
+		cfg := testConfig()
+		cfg.MilvusHost = ""
+		opt.SetConfig(cfg)
+		opt.SetOllamaCli(&mockOllamaClient{})
+		opt.SetHttpCli(&mockHTTPClient{})
+	})
+	if err == nil {
+		t.Fatalf("expected error when default milvus init fails")
+	}
+}
+
 func TestAgentDoubleOption_AddSkillAndSetCheckpoint(t *testing.T) {
 	ollamaCli := &mockOllamaClient{}
 	milvusCli := &mockMilvusClient{}
@@ -527,6 +540,17 @@ func TestAgentDoubleOption_AddSkillAndSetCheckpoint(t *testing.T) {
 	}
 	if ad.checkpoint == nil {
 		t.Fatalf("expected checkpoint to be set")
+	}
+}
+
+func TestNewAgentDouble_NilAgentBuildFailure(t *testing.T) {
+	_, err := NewAgentDouble(context.Background(), func(opt *AgentDoubleOption) {
+		cfg := testConfig()
+		cfg.MilvusHost = ""
+		opt.SetConfig(cfg)
+	})
+	if err == nil {
+		t.Fatalf("expected error when internal NewAgent build fails")
 	}
 }
 
@@ -611,6 +635,43 @@ func TestAgentDouble_talkToOllamaWithMemory_CheckpointError(t *testing.T) {
 	}
 }
 
+func TestAgent_talkToOllama_ClientError(t *testing.T) {
+	a := &Agent{config: testConfig(), ollamaCli: &mockOllamaClient{talkErr: errors.New("talk failed")}}
+	_, err := a.talkToOllama("m", []*ollama.Message{{Role: "user", Content: "hi"}}, func(string) error { return nil })
+	if err == nil {
+		t.Fatalf("expected talk error")
+	}
+}
+
+func TestAgent_talkToOllama_CallbackError(t *testing.T) {
+	a := &Agent{config: testConfig(), ollamaCli: &mockOllamaClient{talkChunks: []string{"x"}}}
+	expected := errors.New("callback failed")
+	_, err := a.talkToOllama("m", []*ollama.Message{{Role: "user", Content: "hi"}}, func(string) error { return expected })
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected callback error, got: %v", err)
+	}
+}
+
+func TestAgent_reviewResponse_BooleanOutcomes(t *testing.T) {
+	a := &Agent{config: testConfig(), ollamaCli: &mockOllamaClient{talkChunks: []string{"true"}}}
+	bad, err := a.reviewResponse("x")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !bad {
+		t.Fatalf("expected true when model returns true")
+	}
+
+	a2 := &Agent{config: testConfig(), ollamaCli: &mockOllamaClient{talkChunks: []string{"false"}}}
+	bad2, err := a2.reviewResponse("x")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if bad2 {
+		t.Fatalf("expected false when model returns false")
+	}
+}
+
 func TestAgentDouble_talkToOllamaWithMemory_NonAbortSkillError(t *testing.T) {
 	ad, ollamaCli, _, _ := newAgentDoubleWithMocks(t)
 	ad.skillSet["err-skill"] = &mockSkill{err: errors.New("skill failed")}
@@ -659,7 +720,7 @@ func TestAgentDouble_CompressContextByTokenBudget_ZeroBudget(t *testing.T) {
 func TestAgentDouble_CompressContextByTokenBudget_DefaultReserveAndThreshold(t *testing.T) {
 	ad, _, _, _ := newAgentDoubleWithMocks(t)
 	ad.config.ChatModelContextLimit = 5
-	ad.config.ContextReserveTokens = 0  // triggers default
+	ad.config.ContextReserveTokens = 0   // triggers default
 	ad.config.NearDuplicateThreshold = 0 // triggers default
 	ad.AddAssistantMemory("msg1", nil)
 	ad.AddAssistantMemory("msg2", nil)

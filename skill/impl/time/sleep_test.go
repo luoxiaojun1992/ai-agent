@@ -39,6 +39,20 @@ func TestSleep_Do_InvalidParams(t *testing.T) {
 	}
 }
 
+func TestSleep_Do_MissingDuration(t *testing.T) {
+	s := &Sleep{}
+	if err := s.Do(context.Background(), map[string]any{}, nil); err == nil {
+		t.Fatalf("expected missing duration error")
+	}
+}
+
+func TestSleep_Do_DurationTypeError(t *testing.T) {
+	s := &Sleep{}
+	if err := s.Do(context.Background(), map[string]any{"duration": 1}, nil); err == nil {
+		t.Fatalf("expected duration type error")
+	}
+}
+
 func TestSleep_Do_StopsAroundDuration(t *testing.T) {
 	s := &Sleep{}
 	start := time.Now()

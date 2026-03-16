@@ -157,10 +157,20 @@ func TestRemover_Do_EmptyPath(t *testing.T) {
 	}
 }
 
-func TestValidateRemovePath_SystemDir(t *testing.T) {
-	err := validateRemovePath("/proc/test-nonexistent")
+func TestValidateRemovePath_CurrentDir(t *testing.T) {
+	err := validateRemovePath(".")
 	if err == nil {
-		t.Fatalf("expected system dir rejection error")
+		t.Fatalf("expected current directory rejection error")
+	}
+	if !strings.Contains(err.Error(), "current directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateRemovePath_SystemDirPrefix(t *testing.T) {
+	err := validateRemovePath("/dev/null")
+	if err == nil {
+		t.Fatalf("expected system directory rejection error")
 	}
 	if !strings.Contains(err.Error(), "system") {
 		t.Fatalf("unexpected error: %v", err)
