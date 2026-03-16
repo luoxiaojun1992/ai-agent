@@ -37,6 +37,7 @@ logs/
 .cache/
 .npm/
 .eslintcache
+.tmp-testdata/
 
 # Electron
 out/
