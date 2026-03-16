@@ -196,7 +196,12 @@ func (a *Agent) GetDescription() string {
 func (a *Agent) toolPrompt() string {
 	functionPromptList := make([]string, 0, len(a.skillSet))
 	for skillName, skill := range a.skillSet {
-		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, skill.GetDescription()))
+		desc, err := skill.GetDescription()
+		if err != nil {
+			functionPromptList = append(functionPromptList, fmt.Sprintf("%s: failed to load description: %v", skillName, err))
+			continue
+		}
+		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, desc))
 	}
 	allFunctionPrompt := strings.Join(functionPromptList, "\n\n")
 	return fmt.Sprintf(`
@@ -404,7 +409,12 @@ func (ad *AgentDouble) loopPrompt() string {
 func (ad *AgentDouble) toolPrompt() string {
 	functionPromptList := make([]string, 0, len(ad.skillSet))
 	for skillName, skill := range ad.skillSet {
-		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, skill.GetDescription()))
+		desc, err := skill.GetDescription()
+		if err != nil {
+			functionPromptList = append(functionPromptList, fmt.Sprintf("%s: failed to load description: %v", skillName, err))
+			continue
+		}
+		functionPromptList = append(functionPromptList, fmt.Sprintf("%s: %s", skillName, desc))
 	}
 	allFunctionPrompt := strings.Join(functionPromptList, "\n\n")
 	return fmt.Sprintf(`

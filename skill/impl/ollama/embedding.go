@@ -11,13 +11,13 @@ type Embedding struct {
 	OllamaCli ollamaPKG.IClient
 }
 
-func (e *Embedding) GetDescription() string {
+func (e *Embedding) GetDescription() (string, error) {
 	return `Generate vector embeddings using Ollama embedding models. This skill converts text content into numerical vector representations suitable for semantic search and similarity comparisons.
 Parameters:
 - model: string - The name of the Ollama embedding model to use (e.g., "nomic-embed-text")
 - content: string - The text content to generate embeddings for
 Returns: Vector embedding array
-Note: Requires Ollama service with embedding models installed`
+Note: Requires Ollama service with embedding models installed`, nil
 }
 
 func (e *Embedding) ShortDescription() string {
@@ -55,12 +55,12 @@ func (e *Embedding) Do(ctx context.Context, cmdCtx any, callback func(output any
 	if err != nil {
 		return err
 	}
-	
+
 	// Extract embeddings from response
 	if embeddingResponse == nil {
 		return errors.New("empty embedding response")
 	}
-	
+
 	_, err = callback(embeddingResponse)
 	return err
 }

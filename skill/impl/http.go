@@ -15,7 +15,7 @@ type Http struct {
 	AllowedURLList []string
 }
 
-func (h *Http) GetDescription() string {
+func (h *Http) GetDescription() (string, error) {
 	return `Make HTTP requests to external services. This skill sends HTTP requests with various methods, headers, and body content to specified URLs.
 Parameters:
 - method: string - HTTP method (GET, POST, PUT, DELETE, etc.)
@@ -24,7 +24,7 @@ Parameters:
 - query_params: url.Values - Query parameters to append to URL
 - http_header: http.Header - HTTP headers to include in request
 Returns: HTTP response content
-Security: Only URLs in AllowedURLList are permitted if the list is configured`
+Security: Only URLs in AllowedURLList are permitted if the list is configured`, nil
 }
 
 func (h *Http) ShortDescription() string {

@@ -12,13 +12,13 @@ type Search struct {
 	MilvusCli milvusPKG.IClient
 }
 
-func (s *Search) GetDescription() string {
+func (s *Search) GetDescription() (string, error) {
 	return `Search for similar vectors in Milvus vector database. This skill performs semantic search by finding vectors closest to the query vector using cosine similarity.
 Parameters:
 - collection: string - The name of the Milvus collection to search in
 - vector: []float32 - The query vector to search for similar items
 Returns: Array of similar content strings from the database
-Note: Requires pre-configured Milvus connection and existing collection with indexed vectors`
+Note: Requires pre-configured Milvus connection and existing collection with indexed vectors`, nil
 }
 
 func (s *Search) ShortDescription() string {
@@ -44,7 +44,7 @@ func (s *Search) Do(ctx context.Context, cmdCtx any, callback func(output any) (
 	if !hasVector {
 		return errors.New("not found vector from params")
 	}
-	
+
 	// Handle different vector types
 	var vectorSlice []float32
 	switch v := vector.(type) {

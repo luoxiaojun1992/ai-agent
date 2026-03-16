@@ -4,10 +4,12 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	ai_agent "github.com/luoxiaojun1992/ai-agent"
 	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
+	mcpPkg "github.com/luoxiaojun1992/ai-agent/pkg/mcp"
 )
 
 type mockHTTPClient struct {
@@ -116,5 +118,36 @@ func TestTeam_Do_Errors(t *testing.T) {
 	err := teamWithMap.Do(context.Background(), map[string]any{"member": "missing", "message": "hi"}, nil)
 	if err == nil {
 		t.Fatalf("expected member not found error")
+	}
+}
+
+func TestDescriptions_Basic(t *testing.T) {
+	h := &Http{}
+	hDesc, err := h.GetDescription()
+	if err != nil || hDesc == "" || h.ShortDescription() == "" {
+		t.Fatalf("http descriptions should not be empty")
+	}
+
+	team := &Team{Members: map[string]*ai_agent.AgentDouble{}}
+	desc, err := team.GetDescription()
+	if err != nil {
+		t.Fatalf("unexpected team description error: %v", err)
+	}
+	if desc == "" || !strings.Contains(desc, "Team Members") {
+		t.Fatalf("unexpected team description: %s", desc)
+	}
+}
+
+func TestMCP_GetDescription_ErrorOnListFailure(t *testing.T) {
+	client, err := mcpPkg.NewClient(&mcpPkg.Config{Host: "http://127.0.0.1:1", ClientType: mcpPkg.ClientTypeSSE})
+	if err != nil {
+		t.Fatalf("unexpected new client error: %v", err)
+	}
+	m := &MCP{MCPClient: client}
+	if _, err := m.GetDescription(); err == nil {
+		t.Fatalf("expected get description error when list tools fails")
+	}
+	if m.ShortDescription() == "" {
+		t.Fatalf("short description should not be empty")
 	}
 }

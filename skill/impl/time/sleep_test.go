@@ -2,6 +2,7 @@ package time
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 )
@@ -46,5 +47,16 @@ func TestSleep_Do_StopsAroundDuration(t *testing.T) {
 	}
 	if time.Since(start) < time.Millisecond {
 		t.Fatalf("sleep returned too quickly")
+	}
+}
+
+func TestSleep_Descriptions(t *testing.T) {
+	s := &Sleep{}
+	desc, err := s.GetDescription()
+	if err != nil || desc == "" || s.ShortDescription() == "" {
+		t.Fatalf("descriptions should not be empty")
+	}
+	if !strings.Contains(desc, "duration") {
+		t.Fatalf("expected duration mention in description")
 	}
 }

@@ -10,11 +10,11 @@ type Reader struct {
 	RootDir string
 }
 
-func (r *Reader) GetDescription() string {
+func (r *Reader) GetDescription() (string, error) {
 	return `Read directory contents and list all entries. This skill reads a directory and returns all files and subdirectories within it.
 Parameters:
 - path: string - The path to the directory to be read
-Returns: Array of directory entries (files and subdirectories)`
+Returns: Array of directory entries (files and subdirectories)`, nil
 }
 
 func (r *Reader) ShortDescription() string {

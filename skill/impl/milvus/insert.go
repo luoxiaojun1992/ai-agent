@@ -12,14 +12,14 @@ type Insert struct {
 	MilvusCli milvusPKG.IClient
 }
 
-func (i *Insert) GetDescription() string {
+func (i *Insert) GetDescription() (string, error) {
 	return `Insert vector embeddings and associated content into Milvus vector database. This skill stores text content along with its vector representation for semantic search capabilities.
 Parameters:
 - collection: string - The name of the Milvus collection to insert into
 - content: string - The text content to be stored
 - vector: []float32 - The vector embedding of the content
 Returns: Success status
-Note: Requires pre-configured Milvus connection and existing collection`
+Note: Requires pre-configured Milvus connection and existing collection`, nil
 }
 
 func (i *Insert) ShortDescription() string {
@@ -54,7 +54,7 @@ func (i *Insert) Do(ctx context.Context, cmdCtx any, _ func(output any) (any, er
 	if !hasVector {
 		return errors.New("not found vector from params")
 	}
-	
+
 	// Handle different vector types
 	var vectorSlice []float32
 	switch v := vector.(type) {

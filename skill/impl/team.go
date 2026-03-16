@@ -13,7 +13,7 @@ type Team struct {
 	Members map[string]*ai_agent.AgentDouble
 }
 
-func (t *Team) GetDescription() string {
+func (t *Team) GetDescription() (string, error) {
 	description := `
 The "team" skill represents a collaborative group of AI agents, each with specialized roles and capabilities. This enables complex problem-solving through coordinated interactions among team members.
 1. Team Members
@@ -35,7 +35,7 @@ This description provides clear guidance on the team's composition and how to in
 		memberDescriptionList = append(memberDescriptionList, member.GetDescription())
 	}
 	allMemberDescription := strings.Join(memberDescriptionList, "\n\n")
-	return fmt.Sprintf(description, allMemberDescription)
+	return fmt.Sprintf(description, allMemberDescription), nil
 }
 
 func (t *Team) Do(ctx context.Context, cmdCtx any, callback func(output any) (any, error)) error {

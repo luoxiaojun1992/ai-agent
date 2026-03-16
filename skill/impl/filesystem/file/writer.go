@@ -11,12 +11,12 @@ type Writer struct {
 	RootDir string
 }
 
-func (w *Writer) GetDescription() string {
+func (w *Writer) GetDescription() (string, error) {
 	return `Write content to a file at the specified path. This skill creates new files or overwrites existing ones with the provided content.
 Parameters:
 - path: string - The relative path where the file should be written (relative to RootDir)
 - content: string - The text content to write to the file
-Returns: Success status`
+Returns: Success status`, nil
 }
 
 func (w *Writer) ShortDescription() string {
@@ -50,7 +50,7 @@ func (w *Writer) Do(_ context.Context, cmdCtx any, _ func(output any) (any, erro
 	// Security: Clean the path to prevent directory traversal
 	cleanPath := filepath.Clean(pathStr)
 	fullPath := filepath.Join(w.RootDir, cleanPath)
-	
+
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {

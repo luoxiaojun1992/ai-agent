@@ -11,11 +11,11 @@ type Writer struct {
 	RootDir string
 }
 
-func (w *Writer) GetDescription() string {
+func (w *Writer) GetDescription() (string, error) {
 	return `Create directories at the specified path. This skill creates new directories and any necessary parent directories recursively.
 Parameters:
 - path: string - The relative path where the directory should be created (relative to RootDir)
-Returns: Success status`
+Returns: Success status`, nil
 }
 
 func (w *Writer) ShortDescription() string {

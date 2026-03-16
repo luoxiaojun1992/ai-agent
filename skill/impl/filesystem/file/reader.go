@@ -10,11 +10,11 @@ type Reader struct {
 	RootDir string
 }
 
-func (r *Reader) GetDescription() string {
+func (r *Reader) GetDescription() (string, error) {
 	return `Read file content from specified path. This skill allows reading text files and returns the content as bytes.
 Parameters:
 - path: string - The full path to the file to be read
-Returns: File content as byte array`
+Returns: File content as byte array`, nil
 }
 
 func (r *Reader) ShortDescription() string {

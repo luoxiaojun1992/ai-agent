@@ -1,10 +1,13 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -68,5 +71,65 @@ func TestClient_SendRequest_InvalidURL(t *testing.T) {
 	cli := NewHTTPClient(5*time.Second, true, 5)
 	if _, err := cli.Get("://bad-url", nil, nil); err == nil {
 		t.Fatalf("expected invalid url error")
+	}
+}
+
+func TestClient_WrapperMethods(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(r.Method))
+	}))
+	defer server.Close()
+
+	cli := NewHTTPClient(5*time.Second, true, 2)
+	if res, err := cli.Post(server.URL, "x", nil, nil); err != nil || string(res.Body) != http.MethodPost {
+		t.Fatalf("post failed: err=%v body=%s", err, string(res.Body))
+	}
+	if res, err := cli.Patch(server.URL, "x", nil, nil); err != nil || string(res.Body) != http.MethodPatch {
+		t.Fatalf("patch failed: err=%v body=%s", err, string(res.Body))
+	}
+	if res, err := cli.Delete(server.URL, "x", nil, nil); err != nil || string(res.Body) != http.MethodDelete {
+		t.Fatalf("delete failed: err=%v body=%s", err, string(res.Body))
+	}
+}
+
+func TestClient_SendRequest_BytesBodyAndBadURLForQuery(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		if !bytes.Equal(b, []byte("abc")) {
+			t.Fatalf("unexpected body: %s", string(b))
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cli := NewHTTPClient(5*time.Second, true, 5)
+	if _, err := cli.SendRequest(http.MethodPost, server.URL, []byte("abc"), nil, nil); err != nil {
+		t.Fatalf("expected bytes body to work: %v", err)
+	}
+
+	if _, err := cli.SendRequest(http.MethodGet, "://bad-url", nil, url.Values{"a": []string{"1"}}, nil); err == nil {
+		t.Fatalf("expected url parse error when query params are provided")
+	}
+}
+
+func TestClient_SendRequest_InvalidJSONBodyMarshal(t *testing.T) {
+	cli := NewHTTPClient(5*time.Second, true, 5)
+	badBody := map[string]any{"x": make(chan int)}
+	if _, err := cli.SendRequest(http.MethodPost, "http://localhost", badBody, nil, nil); err == nil {
+		t.Fatalf("expected marshal error")
+	}
+}
+
+func TestClient_NewHTTPClient_MaxRedirectsExceeded(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/next", http.StatusFound)
+	}))
+	defer server.Close()
+
+	cli := NewHTTPClient(5*time.Second, true, 0)
+	_, err := cli.Get(server.URL, nil, nil)
+	if err == nil || !strings.Contains(err.Error(), "too many redirects") {
+		t.Fatalf("expected too many redirects error, got: %v", err)
 	}
 }

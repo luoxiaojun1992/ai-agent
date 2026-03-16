@@ -20,7 +20,7 @@ type mockSkill struct {
 	err    error
 }
 
-func (m *mockSkill) GetDescription() string { return "mock-skill" }
+func (m *mockSkill) GetDescription() (string, error) { return "mock-skill", nil }
 
 func (m *mockSkill) Do(ctx context.Context, cmdCtx any, callback func(output any) (any, error)) error {
 	_, _ = ctx, cmdCtx
@@ -345,6 +345,99 @@ func TestAgentDouble_RecallMilvusError(t *testing.T) {
 	milvusCli.searchErr = errors.New("search failed")
 	if _, err := ad.Recall(context.Background(), "q"); err == nil {
 		t.Fatalf("expected recall error")
+	}
+}
+
+func TestAgentAndAgentDouble_BasicPromptHelpers(t *testing.T) {
+	ad, _, _, _ := newAgentDoubleWithMocks(t)
+
+	ad.Agent.SetCharacter("char").SetRole("role")
+	ad.SetCharacter("double-char").SetRole("double-role")
+
+	if ad.Agent.GetDescription() == "" {
+		t.Fatalf("agent description should not be empty")
+	}
+	if ad.GetDescription() == "" {
+		t.Fatalf("agent double description should not be empty")
+	}
+
+	ad.Agent.LearnSkill("s1", &mockSkill{})
+	ad.LearnSkill("s2", &mockSkill{})
+	if !strings.Contains(ad.Agent.toolPrompt(), "s1") {
+		t.Fatalf("agent tool prompt should include learned skill")
+	}
+	if !strings.Contains(ad.toolPrompt(), "s2") {
+		t.Fatalf("double tool prompt should include learned skill")
+	}
+
+	if ad.embeddingModelPrompt() == "" || ad.milvusPrompt() == "" || ad.loopPrompt() == "" {
+		t.Fatalf("prompt helpers should not be empty")
+	}
+}
+
+func TestAgentDouble_InitMemoryAndReset(t *testing.T) {
+	ad, _, _, _ := newAgentDoubleWithMocks(t)
+	ad.Agent.LearnSkill("agent_skill", &mockSkill{})
+	ad.LearnSkill("double_skill", &mockSkill{})
+	ad.config.AgentMode = AgentModeLoop
+
+	ad.InitMemory()
+	if len(ad.memory.Contexts) == 0 {
+		t.Fatalf("expected init memory entries")
+	}
+
+	ad.ResetMemory()
+	if len(ad.memory.Contexts) == 0 {
+		t.Fatalf("expected reset memory to reinitialize context")
+	}
+}
+
+func TestAgentDouble_ListenAndWatch_AndThink(t *testing.T) {
+	ad, ollamaCli, milvusCli, _ := newAgentDoubleWithMocks(t)
+	ollamaCli.embedResp = &ollama.EmbedResponse{Embeddings: [][]float32{{0.1}}}
+	milvusCli.searchResult = []string{"historical context"}
+	ollamaCli.talkChunks = []string{"assistant answer"}
+
+	err := ad.ListenAndWatch(context.Background(), "hello", nil, func(response string) error { return nil })
+	if err != nil {
+		t.Fatalf("listen and watch failed: %v", err)
+	}
+
+	foundContext := false
+	for _, c := range ad.memory.Contexts {
+		if c.Role == "system" && strings.Contains(c.Content, "Context:") {
+			foundContext = true
+			break
+		}
+	}
+	if !foundContext {
+		t.Fatalf("expected recalled context injected as system memory")
+	}
+
+	ollamaCli.talkChunks = []string{"thinking output"}
+	if err := ad.Think(context.Background(), func(output any) error { return nil }); err != nil {
+		t.Fatalf("think failed: %v", err)
+	}
+
+	ad.Learn("learned-info")
+	if ad.memory.Contexts[len(ad.memory.Contexts)-1].Content != "learned-info" {
+		t.Fatalf("expected learn to append assistant memory")
+	}
+}
+
+func TestAgent_Close(t *testing.T) {
+	milvusCli := &mockMilvusClient{}
+	a := &Agent{milvusCli: milvusCli}
+	if err := a.Close(); err != nil {
+		t.Fatalf("close should not fail")
+	}
+}
+
+func TestAgentDouble_Read_BadHTTPCode(t *testing.T) {
+	ad, _, _, httpCli := newAgentDoubleWithMocks(t)
+	httpCli.resp = &httpPKG.Response{StatusCode: 500, Body: []byte("x")}
+	if err := ad.Read("https://example.com"); err == nil {
+		t.Fatalf("expected bad http code error")
 	}
 }
 

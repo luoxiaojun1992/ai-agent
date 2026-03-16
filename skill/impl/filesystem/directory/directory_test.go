@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/luoxiaojun1992/ai-agent/util/testutil"
@@ -64,5 +65,34 @@ func TestWriter_Do_InvalidParams(t *testing.T) {
 	writer := &Writer{}
 	if err := writer.Do(context.Background(), "bad", nil); err == nil {
 		t.Fatalf("expected invalid params error")
+	}
+}
+
+func TestDirectorySkill_Descriptions(t *testing.T) {
+	r := &Reader{}
+	w := &Writer{}
+	rm := &Remover{}
+	rDesc, err := r.GetDescription()
+	if err != nil || rDesc == "" || r.ShortDescription() == "" {
+		t.Fatalf("reader descriptions should not be empty")
+	}
+	wDesc, err := w.GetDescription()
+	if err != nil || wDesc == "" || w.ShortDescription() == "" {
+		t.Fatalf("writer descriptions should not be empty")
+	}
+	rmDesc, err := rm.GetDescription()
+	if err != nil || rmDesc == "" || rm.ShortDescription() == "" {
+		t.Fatalf("remover descriptions should not be empty")
+	}
+	if !strings.Contains(rmDesc, "Warning") {
+		t.Fatalf("expected warning in remover description")
+	}
+}
+
+func TestReader_Do_InvalidPathType(t *testing.T) {
+	r := &Reader{}
+	err := r.Do(context.Background(), map[string]any{"path": 1}, nil)
+	if err == nil {
+		t.Fatalf("expected invalid path type error")
 	}
 }

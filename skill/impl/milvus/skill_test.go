@@ -3,6 +3,7 @@ package milvus
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -106,5 +107,35 @@ func TestSearch_Do_SearchError(t *testing.T) {
 	}, func(output any) (any, error) { return nil, nil })
 	if !errors.Is(err, expected) {
 		t.Fatalf("expected search error, got: %v", err)
+	}
+}
+
+func TestMilvusSkill_Descriptions(t *testing.T) {
+	i := &Insert{}
+	s := &Search{}
+	iDesc, err := i.GetDescription()
+	if err != nil || iDesc == "" || i.ShortDescription() == "" {
+		t.Fatalf("insert descriptions should not be empty")
+	}
+	sDesc, err := s.GetDescription()
+	if err != nil || sDesc == "" || s.ShortDescription() == "" {
+		t.Fatalf("search descriptions should not be empty")
+	}
+	if !strings.Contains(sDesc, "Parameters") {
+		t.Fatalf("expected detailed search description")
+	}
+}
+
+func TestInsert_Do_InvalidParams(t *testing.T) {
+	i := &Insert{MilvusCli: &mockMilvusClient{}}
+	if err := i.Do(context.Background(), "bad", nil); err == nil {
+		t.Fatalf("expected invalid params error")
+	}
+}
+
+func TestSearch_Do_InvalidParams(t *testing.T) {
+	s := &Search{MilvusCli: &mockMilvusClient{}}
+	if err := s.Do(context.Background(), "bad", nil); err == nil {
+		t.Fatalf("expected invalid params error")
 	}
 }

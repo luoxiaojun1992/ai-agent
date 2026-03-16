@@ -9,12 +9,12 @@ import (
 type Sleep struct {
 }
 
-func (s *Sleep) GetDescription() string {
+func (s *Sleep) GetDescription() (string, error) {
 	return `Pause execution for a specified duration. This skill introduces delays in execution, useful for rate limiting, waiting for resources, or timed operations.
 Parameters:
 - duration: string - Duration to sleep in Go duration format (e.g., "5s", "100ms", "1m30s")
 Returns: Success status after sleep completes
-Examples: "5s" (5 seconds), "100ms" (100 milliseconds), "1m30s" (1 minute 30 seconds)`
+Examples: "5s" (5 seconds), "100ms" (100 milliseconds), "1m30s" (1 minute 30 seconds)`, nil
 }
 
 func (s *Sleep) ShortDescription() string {
@@ -40,7 +40,7 @@ func (s *Sleep) Do(ctx context.Context, cmdCtx any, _ func(output any) (any, err
 	if err != nil {
 		return err
 	}
-	
+
 	// Support context cancellation
 	select {
 	case <-time.After(durationObj):

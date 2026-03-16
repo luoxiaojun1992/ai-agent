@@ -12,12 +12,12 @@ type Remover struct {
 	RootDir string
 }
 
-func (r *Remover) GetDescription() string {
+func (r *Remover) GetDescription() (string, error) {
 	return `Remove a directory and all its contents recursively. This skill permanently deletes directories and all files within them.
 Parameters:
 - path: string - The path to the directory to be removed
 Returns: Success status
-Warning: This operation is irreversible and will delete all contents recursively`
+Warning: This operation is irreversible and will delete all contents recursively`, nil
 }
 
 func (r *Remover) ShortDescription() string {
@@ -43,13 +43,13 @@ func (r *Remover) Do(_ context.Context, cmdCtx any, _ func(output any) (any, err
 	if pathStr == "/" || pathStr == "" || pathStr == "." {
 		return errors.New("cannot delete root directory, current directory, or empty path")
 	}
-	
+
 	// Additional security: prevent deletion of common system directories
 	absPath, err := filepath.Abs(pathStr)
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if trying to delete system directories
 	systemDirs := []string{"/bin", "/etc", "/usr", "/var", "/sys", "/proc", "/dev"}
 	for _, sysDir := range systemDirs {
@@ -57,6 +57,6 @@ func (r *Remover) Do(_ context.Context, cmdCtx any, _ func(output any) (any, err
 			return errors.New("cannot delete system directories")
 		}
 	}
-	
+
 	return os.RemoveAll(pathStr)
 }

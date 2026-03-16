@@ -3,6 +3,7 @@ package ollama
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	ollamaPKG "github.com/luoxiaojun1992/ai-agent/pkg/ollama"
@@ -71,5 +72,23 @@ func TestEmbedding_Do_ClientError(t *testing.T) {
 	}, func(output any) (any, error) { return nil, nil })
 	if !errors.Is(err, expected) {
 		t.Fatalf("expected client error, got: %v", err)
+	}
+}
+
+func TestEmbedding_Descriptions(t *testing.T) {
+	e := &Embedding{}
+	desc, err := e.GetDescription()
+	if err != nil || desc == "" || e.ShortDescription() == "" {
+		t.Fatalf("descriptions should not be empty")
+	}
+	if !strings.Contains(desc, "Parameters") {
+		t.Fatalf("expected details in description")
+	}
+}
+
+func TestEmbedding_Do_InvalidParams(t *testing.T) {
+	e := &Embedding{OllamaCli: &mockOllamaClient{}}
+	if err := e.Do(context.Background(), "bad", nil); err == nil {
+		t.Fatalf("expected invalid params error")
 	}
 }

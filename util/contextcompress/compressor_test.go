@@ -113,3 +113,31 @@ func TestCompressor_FoldNearDuplicateCodeSnippets(t *testing.T) {
 		t.Fatalf("expected non-duplicate code snippet to be preserved")
 	}
 }
+
+func TestCompressor_DefaultsAndZeroBudget(t *testing.T) {
+	compressor := NewCompressor(Config{BudgetTokens: 0, ReserveTokens: -1})
+	input := []Message{{Role: "assistant", Content: "a"}}
+	output := compressor.Compress(input)
+	if len(output) != 1 {
+		t.Fatalf("expected single message unchanged")
+	}
+}
+
+func TestTokenSetJaccard_EmptyAndEqual(t *testing.T) {
+	if v := tokenSetJaccard("", ""); v != 1 {
+		t.Fatalf("expected 1 for equal empty, got %v", v)
+	}
+	if v := tokenSetJaccard("", "a"); v != 0 {
+		t.Fatalf("expected 0 for empty vs non-empty, got %v", v)
+	}
+}
+
+func TestNormalizeAndCountBranches(t *testing.T) {
+	if normalizeContent("   ") != "" {
+		t.Fatalf("expected whitespace-only input to normalize to empty")
+	}
+	estimator := newTokenEstimator("qwen3:4b")
+	if n := estimator.count("verylongtoken123456 another"); n <= 0 {
+		t.Fatalf("expected positive token count")
+	}
+}

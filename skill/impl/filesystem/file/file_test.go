@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/luoxiaojun1992/ai-agent/util/testutil"
@@ -69,5 +70,34 @@ func TestReader_Do_InvalidParams(t *testing.T) {
 	reader := &Reader{}
 	if err := reader.Do(context.Background(), "bad", nil); err == nil {
 		t.Fatalf("expected invalid params error")
+	}
+}
+
+func TestFileSkill_Descriptions(t *testing.T) {
+	r := &Reader{}
+	w := &Writer{}
+	rm := &Remover{}
+	rDesc, err := r.GetDescription()
+	if err != nil || rDesc == "" || r.ShortDescription() == "" {
+		t.Fatalf("reader descriptions should not be empty")
+	}
+	wDesc, err := w.GetDescription()
+	if err != nil || wDesc == "" || w.ShortDescription() == "" {
+		t.Fatalf("writer descriptions should not be empty")
+	}
+	rmDesc, err := rm.GetDescription()
+	if err != nil || rmDesc == "" || rm.ShortDescription() == "" {
+		t.Fatalf("remover descriptions should not be empty")
+	}
+	if !strings.Contains(rmDesc, "Warning") {
+		t.Fatalf("expected warning in remover description")
+	}
+}
+
+func TestWriter_Do_InvalidContentType(t *testing.T) {
+	w := &Writer{RootDir: t.TempDir()}
+	err := w.Do(context.Background(), map[string]any{"path": "x", "content": 1}, nil)
+	if err == nil {
+		t.Fatalf("expected invalid content type error")
 	}
 }
