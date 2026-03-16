@@ -11,7 +11,6 @@ import (
 	ai_agent "github.com/luoxiaojun1992/ai-agent"
 	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
 	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
-	mcpPkg "github.com/luoxiaojun1992/ai-agent/pkg/mcp"
 	"github.com/luoxiaojun1992/ai-agent/pkg/ollama"
 )
 
@@ -141,17 +140,58 @@ func TestDescriptions_Basic(t *testing.T) {
 	}
 }
 
-func TestMCP_GetDescription_ErrorOnListFailure(t *testing.T) {
-	client, err := mcpPkg.NewClient(&mcpPkg.Config{Host: "http://127.0.0.1:1", ClientType: mcpPkg.ClientTypeSSE})
+type mockMCPClient struct {
+	listToolsResp []string
+	listToolsErr  error
+
+	callToolResp []string
+	callToolErr  error
+
+	calledName string
+	calledArgs map[string]interface{}
+}
+
+func (m *mockMCPClient) Initialize(ctx context.Context) error {
+	_ = ctx
+	return nil
+}
+
+func (m *mockMCPClient) Close() error { return nil }
+
+func (m *mockMCPClient) ListTools(ctx context.Context) ([]string, error) {
+	_ = ctx
+	if m.listToolsErr != nil {
+		return nil, m.listToolsErr
+	}
+	return m.listToolsResp, nil
+}
+
+func (m *mockMCPClient) CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error) {
+	_ = ctx
+	m.calledName = name
+	m.calledArgs = arguments
+	if m.callToolErr != nil {
+		return nil, m.callToolErr
+	}
+	return m.callToolResp, nil
+}
+
+func TestMCP_GetDescription_SuccessAndError(t *testing.T) {
+	m1 := &MCP{MCPClient: &mockMCPClient{listToolsResp: []string{"tool-a", "tool-b"}}}
+	desc, err := m1.GetDescription()
 	if err != nil {
-		t.Fatalf("unexpected new client error: %v", err)
+		t.Fatalf("unexpected get description error: %v", err)
 	}
-	m := &MCP{MCPClient: client}
-	if _, err := m.GetDescription(); err == nil {
-		t.Fatalf("expected get description error when list tools fails")
+	if !strings.Contains(desc, "tool-a") || !strings.Contains(desc, "tool-b") {
+		t.Fatalf("expected tool list in description, got: %s", desc)
 	}
-	if m.ShortDescription() == "" {
+	if m1.ShortDescription() == "" {
 		t.Fatalf("short description should not be empty")
+	}
+
+	m2 := &MCP{MCPClient: &mockMCPClient{listToolsErr: errors.New("list tools failed")}}
+	if _, err := m2.GetDescription(); err == nil {
+		t.Fatalf("expected get description error")
 	}
 }
 
@@ -238,6 +278,58 @@ func TestMCP_Do_MissingNameAndArguments(t *testing.T) {
 	}
 	if err := m.Do(context.Background(), map[string]any{"name": "n"}, nil); err == nil {
 		t.Fatalf("expected missing arguments error")
+	}
+}
+
+func TestMCP_Do_SuccessAndCallbackError(t *testing.T) {
+	mockCli := &mockMCPClient{callToolResp: []string{"ok"}}
+	m := &MCP{MCPClient: mockCli}
+
+	called := false
+	err := m.Do(context.Background(), map[string]any{
+		"name":      "tool-a",
+		"arguments": map[string]interface{}{"k": "v"},
+	}, func(output any) (any, error) {
+		called = true
+		if _, ok := output.([]string); !ok {
+			t.Fatalf("expected []string callback output, got %T", output)
+		}
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected do error: %v", err)
+	}
+	if !called {
+		t.Fatalf("expected callback called")
+	}
+	if mockCli.calledName != "tool-a" {
+		t.Fatalf("expected call tool name captured")
+	}
+
+	expected := errors.New("callback failed")
+	err = m.Do(context.Background(), map[string]any{
+		"name":      "tool-a",
+		"arguments": map[string]interface{}{},
+	}, func(output any) (any, error) {
+		_ = output
+		return nil, expected
+	})
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected callback error, got: %v", err)
+	}
+}
+
+func TestMCP_Do_CallToolError(t *testing.T) {
+	m := &MCP{MCPClient: &mockMCPClient{callToolErr: errors.New("call failed")}}
+	err := m.Do(context.Background(), map[string]any{
+		"name":      "tool-a",
+		"arguments": map[string]interface{}{},
+	}, func(output any) (any, error) {
+		_ = output
+		return nil, nil
+	})
+	if err == nil {
+		t.Fatalf("expected call tool error")
 	}
 }
 
