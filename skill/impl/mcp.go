@@ -10,7 +10,7 @@ import (
 )
 
 type MCP struct {
-	MCPClient *mcp.Client
+	MCPClient mcp.IClient
 }
 
 func (m *MCP) GetDescription() (string, error) {

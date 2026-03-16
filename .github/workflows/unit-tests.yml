@@ -33,7 +33,7 @@ jobs:
       - name: Run root unit tests
         run: |
           set -euo pipefail
-          pkgs=$(go list ./... | grep -v '/pkg/milvus$' | grep -v '/pkg/mcp$' | grep -v '/pkg/ollama$')
+          pkgs=$(go list ./... | grep -v '/pkg/milvus$' | grep -v '/pkg/mcp$' | grep -v '/pkg/ollama$' | grep -v '/util/testutil$')
           coverpkgs=$(echo "$pkgs" | tr '\n' ',' | sed 's/,$//')
           go test $pkgs -coverpkg="$coverpkgs" -coverprofile=coverage.out
 

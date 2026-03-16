@@ -10,6 +10,10 @@ import (
 )
 
 type IClient interface {
+	Initialize(ctx context.Context) error
+	Close() error
+	ListTools(ctx context.Context) ([]string, error)
+	CallTool(ctx context.Context, name string, arguments map[string]interface{}) ([]string, error)
 }
 
 type ClientType string
