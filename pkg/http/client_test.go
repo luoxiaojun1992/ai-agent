@@ -133,3 +133,19 @@ func TestClient_NewHTTPClient_MaxRedirectsExceeded(t *testing.T) {
 		t.Fatalf("expected too many redirects error, got: %v", err)
 	}
 }
+
+func TestClient_SendRequest_StringBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		if string(b) != "hello" {
+			t.Fatalf("expected string body 'hello', got: %s", string(b))
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cli := NewHTTPClient(5*time.Second, true, 5)
+	if _, err := cli.SendRequest(http.MethodPost, server.URL, "hello", nil, nil); err != nil {
+		t.Fatalf("unexpected error with string body: %v", err)
+	}
+}

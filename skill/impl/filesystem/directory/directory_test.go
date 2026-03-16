@@ -2,6 +2,7 @@ package directory
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,9 +54,8 @@ func TestWriterReaderAndRemover_Do(t *testing.T) {
 	}
 }
 
-func TestRemover_Do_RejectDangerousPath(t *testing.T) {
-	remover := &Remover{}
-	err := remover.Do(context.Background(), map[string]any{"path": "/"}, nil)
+func TestValidateRemovePath_RejectDangerousPath(t *testing.T) {
+	err := validateRemovePath("/")
 	if err == nil {
 		t.Fatalf("expected dangerous path to be rejected")
 	}
@@ -94,5 +94,75 @@ func TestReader_Do_InvalidPathType(t *testing.T) {
 	err := r.Do(context.Background(), map[string]any{"path": 1}, nil)
 	if err == nil {
 		t.Fatalf("expected invalid path type error")
+	}
+}
+
+func TestReader_Do_MissingPath(t *testing.T) {
+	r := &Reader{}
+	if err := r.Do(context.Background(), map[string]any{}, nil); err == nil {
+		t.Fatalf("expected missing path error")
+	}
+}
+
+func TestReader_Do_ReadDirError(t *testing.T) {
+	r := &Reader{}
+	err := r.Do(context.Background(), map[string]any{"path": filepath.Join(t.TempDir(), "missing-dir")}, func(any) (any, error) { return nil, nil })
+	if err == nil {
+		t.Fatalf("expected ReadDir error for nonexistent directory")
+	}
+}
+
+func TestReader_Do_CallbackError(t *testing.T) {
+	dir := t.TempDir()
+	expected := errors.New("cb error")
+	r := &Reader{}
+	err := r.Do(context.Background(), map[string]any{"path": dir}, func(any) (any, error) { return nil, expected })
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected callback error, got: %v", err)
+	}
+}
+
+func TestWriter_Do_MissingPath(t *testing.T) {
+	w := &Writer{RootDir: t.TempDir()}
+	if err := w.Do(context.Background(), map[string]any{}, nil); err == nil {
+		t.Fatalf("expected missing path error")
+	}
+}
+
+func TestWriter_Do_PathNotString(t *testing.T) {
+	w := &Writer{RootDir: t.TempDir()}
+	if err := w.Do(context.Background(), map[string]any{"path": 1}, nil); err == nil {
+		t.Fatalf("expected path type error")
+	}
+}
+
+func TestRemover_Do_InvalidParams(t *testing.T) {
+	r := &Remover{}
+	if err := r.Do(context.Background(), "bad", nil); err == nil {
+		t.Fatalf("expected invalid params error")
+	}
+}
+
+func TestRemover_Do_PathNotString(t *testing.T) {
+	r := &Remover{}
+	if err := r.Do(context.Background(), map[string]any{"path": 1}, nil); err == nil {
+		t.Fatalf("expected path type error")
+	}
+}
+
+func TestRemover_Do_EmptyPath(t *testing.T) {
+	r := &Remover{}
+	if err := r.Do(context.Background(), map[string]any{"path": ""}, nil); err == nil {
+		t.Fatalf("expected empty path error")
+	}
+}
+
+func TestValidateRemovePath_SystemDir(t *testing.T) {
+	err := validateRemovePath("/proc/test-nonexistent")
+	if err == nil {
+		t.Fatalf("expected system dir rejection error")
+	}
+	if !strings.Contains(err.Error(), "system") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

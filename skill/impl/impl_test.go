@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -149,5 +150,102 @@ func TestMCP_GetDescription_ErrorOnListFailure(t *testing.T) {
 	}
 	if m.ShortDescription() == "" {
 		t.Fatalf("short description should not be empty")
+	}
+}
+
+func TestHTTP_Do_AllParamErrors(t *testing.T) {
+	cli := &mockHTTPClient{}
+	s := &Http{Client: cli}
+
+	if err := s.Do(context.Background(), "bad", nil); err == nil {
+		t.Fatalf("expected invalid params error")
+	}
+	base := func(extra map[string]any) map[string]any {
+		m := map[string]any{
+			"method":       "GET",
+			"path":         "x",
+			"body":         "",
+			"query_params": url.Values{},
+			"http_header":  http.Header{},
+		}
+		for k, v := range extra {
+			delete(m, k)
+			if v != nil {
+				m[k] = v
+			}
+		}
+		return m
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"method": nil}), nil); err == nil {
+		t.Fatalf("expected missing method error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"method": 1}), nil); err == nil {
+		t.Fatalf("expected method type error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"path": nil}), nil); err == nil {
+		t.Fatalf("expected missing path error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"path": 1}), nil); err == nil {
+		t.Fatalf("expected path type error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"body": nil}), nil); err == nil {
+		t.Fatalf("expected missing body error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"body": 1}), nil); err == nil {
+		t.Fatalf("expected body type error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"query_params": nil}), nil); err == nil {
+		t.Fatalf("expected missing query_params error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"query_params": "bad"}), nil); err == nil {
+		t.Fatalf("expected query_params type error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"http_header": nil}), nil); err == nil {
+		t.Fatalf("expected missing http_header error")
+	}
+	if err := s.Do(context.Background(), base(map[string]any{"http_header": "bad"}), nil); err == nil {
+		t.Fatalf("expected http_header type error")
+	}
+}
+
+func TestHTTP_Do_ClientError(t *testing.T) {
+	s := &Http{Client: &mockHTTPClient{err: errors.New("network error")}}
+	err := s.Do(context.Background(), map[string]any{
+		"method": "GET", "path": "x", "body": "", "query_params": url.Values{}, "http_header": http.Header{},
+	}, func(any) (any, error) { return nil, nil })
+	if err == nil {
+		t.Fatalf("expected client error")
+	}
+}
+
+func TestHTTP_Do_CallbackError(t *testing.T) {
+	expected := errors.New("callback error")
+	s := &Http{Client: &mockHTTPClient{response: &httpPKG.Response{StatusCode: 200}}}
+	err := s.Do(context.Background(), map[string]any{
+		"method": "GET", "path": "x", "body": "", "query_params": url.Values{}, "http_header": http.Header{},
+	}, func(any) (any, error) { return nil, expected })
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected callback error, got: %v", err)
+	}
+}
+
+func TestMCP_Do_MissingNameAndArguments(t *testing.T) {
+	m := &MCP{}
+	if err := m.Do(context.Background(), map[string]any{"arguments": map[string]interface{}{}}, nil); err == nil {
+		t.Fatalf("expected missing name error")
+	}
+	if err := m.Do(context.Background(), map[string]any{"name": "n"}, nil); err == nil {
+		t.Fatalf("expected missing arguments error")
+	}
+}
+
+func TestTeam_Do_MemberNotStringAndMessageNotString(t *testing.T) {
+	team := &Team{Members: map[string]*ai_agent.AgentDouble{}}
+	if err := team.Do(context.Background(), map[string]any{"member": 1}, nil); err == nil {
+		t.Fatalf("expected member type error")
+	}
+	teamWithMember := &Team{Members: map[string]*ai_agent.AgentDouble{"m": nil}}
+	if err := teamWithMember.Do(context.Background(), map[string]any{"member": "m", "message": 123}, nil); err == nil {
+		t.Fatalf("expected message type error")
 	}
 }

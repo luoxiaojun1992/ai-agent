@@ -39,6 +39,15 @@ func (r *Remover) Do(_ context.Context, cmdCtx any, _ func(output any) (any, err
 		return errors.New("error converting path from params")
 	}
 
+	if err := validateRemovePath(pathStr); err != nil {
+		return err
+	}
+
+	return os.RemoveAll(pathStr)
+}
+
+
+func validateRemovePath(pathStr string) error {
 	// Security check: ensure we're not deleting system directories
 	if pathStr == "/" || pathStr == "" || pathStr == "." {
 		return errors.New("cannot delete root directory, current directory, or empty path")
@@ -58,5 +67,5 @@ func (r *Remover) Do(_ context.Context, cmdCtx any, _ func(output any) (any, err
 		}
 	}
 
-	return os.RemoveAll(pathStr)
+	return nil
 }

@@ -141,3 +141,47 @@ func TestNormalizeAndCountBranches(t *testing.T) {
 		t.Fatalf("expected positive token count")
 	}
 }
+
+func TestTokenEstimator_Count_EmptyAndNoMatch(t *testing.T) {
+	e := newTokenEstimator("")
+	// empty text → return 0
+	if n := e.count(""); n != 0 {
+		t.Fatalf("expected 0 for empty text, got %d", n)
+	}
+	// whitespace-only: regex finds no tokens → len([]rune)/4+1
+	if n := e.count("   "); n <= 0 {
+		t.Fatalf("expected positive count for whitespace-only text (no token matches), got %d", n)
+	}
+}
+
+func TestTokenSetJaccard_WhitespaceTokenSets(t *testing.T) {
+	// whitespace-only strings produce empty token sets
+	if v := tokenSetJaccard("   ", "hello"); v != 0 {
+		t.Fatalf("expected 0 for whitespace vs text token sets, got %v", v)
+	}
+	if v := tokenSetJaccard("   ", "   "); v != 1 {
+		t.Fatalf("expected 1 for equal whitespace-only strings, got %v", v)
+	}
+}
+
+func TestDropOldestRemovable_ZeroBudget(t *testing.T) {
+	c := NewCompressor(Config{BudgetTokens: 10})
+	msgs := []Message{{Role: "user", Content: "hello"}}
+	result := c.dropOldestRemovable(msgs, 0)
+	if len(result) != len(msgs) {
+		t.Fatalf("expected messages unchanged for zero budget, got len=%d", len(result))
+	}
+}
+
+func TestDropOldestRemovable_AllProtected(t *testing.T) {
+	c := NewCompressor(Config{BudgetTokens: 2})
+	msgs := []Message{
+		{Role: "system", Content: "important system instruction", Protected: true},
+		{Role: "user", Content: "important user message", Protected: true},
+	}
+	// All messages are protected; cannot remove any despite being over budget
+	result := c.dropOldestRemovable(msgs, 1)
+	if len(result) != 2 {
+		t.Fatalf("expected all protected messages kept, got len=%d", len(result))
+	}
+}

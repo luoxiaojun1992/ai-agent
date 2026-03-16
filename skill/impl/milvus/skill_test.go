@@ -139,3 +139,129 @@ func TestSearch_Do_InvalidParams(t *testing.T) {
 		t.Fatalf("expected invalid params error")
 	}
 }
+
+func TestInsert_Do_MissingAndBadParams(t *testing.T) {
+	i := &Insert{MilvusCli: &mockMilvusClient{}}
+	// missing collection
+	if err := i.Do(context.Background(), map[string]any{"content": "x", "vector": []float32{1.0}}, nil); err == nil {
+		t.Fatalf("expected missing collection error")
+	}
+	// collection not string
+	if err := i.Do(context.Background(), map[string]any{"collection": 1, "content": "x", "vector": []float32{1.0}}, nil); err == nil {
+		t.Fatalf("expected collection type error")
+	}
+	// missing content
+	if err := i.Do(context.Background(), map[string]any{"collection": "c", "vector": []float32{1.0}}, nil); err == nil {
+		t.Fatalf("expected missing content error")
+	}
+	// content not string
+	if err := i.Do(context.Background(), map[string]any{"collection": "c", "content": 1, "vector": []float32{1.0}}, nil); err == nil {
+		t.Fatalf("expected content type error")
+	}
+	// missing vector
+	if err := i.Do(context.Background(), map[string]any{"collection": "c", "content": "x"}, nil); err == nil {
+		t.Fatalf("expected missing vector error")
+	}
+	// default bad vector type
+	if err := i.Do(context.Background(), map[string]any{"collection": "c", "content": "x", "vector": "bad"}, nil); err == nil {
+		t.Fatalf("expected bad vector type error")
+	}
+}
+
+func TestInsert_Do_DirectFloat32Vector(t *testing.T) {
+	cli := &mockMilvusClient{}
+	i := &Insert{MilvusCli: cli}
+	err := i.Do(context.Background(), map[string]any{
+		"collection": "c",
+		"content":    "hello",
+		"vector":     []float32{1.0, 2.0},
+	}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !cli.insertCalled {
+		t.Fatalf("expected insert called")
+	}
+}
+
+func TestInsert_Do_Float32ElementInInterface(t *testing.T) {
+	cli := &mockMilvusClient{}
+	i := &Insert{MilvusCli: cli}
+	err := i.Do(context.Background(), map[string]any{
+		"collection": "c",
+		"content":    "hello",
+		"vector":     []interface{}{float32(0.5), float64(0.3)},
+	}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error with mixed float types: %v", err)
+	}
+}
+
+func TestInsert_Do_MilvusError(t *testing.T) {
+	cli := &mockMilvusClient{insertErr: errors.New("insert failed")}
+	i := &Insert{MilvusCli: cli}
+	err := i.Do(context.Background(), map[string]any{
+		"collection": "c",
+		"content":    "hello",
+		"vector":     []float32{1.0},
+	}, nil)
+	if err == nil {
+		t.Fatalf("expected milvus insert error")
+	}
+}
+
+func TestSearch_Do_MissingAndBadParams(t *testing.T) {
+	s := &Search{MilvusCli: &mockMilvusClient{}}
+	// missing collection
+	if err := s.Do(context.Background(), map[string]any{"vector": []float32{1.0}}, func(any) (any, error) { return nil, nil }); err == nil {
+		t.Fatalf("expected missing collection error")
+	}
+	// collection not string
+	if err := s.Do(context.Background(), map[string]any{"collection": 1, "vector": []float32{1.0}}, func(any) (any, error) { return nil, nil }); err == nil {
+		t.Fatalf("expected collection type error")
+	}
+	// missing vector
+	if err := s.Do(context.Background(), map[string]any{"collection": "c"}, func(any) (any, error) { return nil, nil }); err == nil {
+		t.Fatalf("expected missing vector error")
+	}
+	// default bad vector type
+	if err := s.Do(context.Background(), map[string]any{"collection": "c", "vector": "bad"}, func(any) (any, error) { return nil, nil }); err == nil {
+		t.Fatalf("expected bad vector type error")
+	}
+}
+
+func TestSearch_Do_InterfaceVectorWithFloat32(t *testing.T) {
+	cli := &mockMilvusClient{searchResult: []string{"r"}}
+	s := &Search{MilvusCli: cli}
+	err := s.Do(context.Background(), map[string]any{
+		"collection": "c",
+		"vector":     []interface{}{float32(0.5), float64(0.3)},
+	}, func(any) (any, error) { return nil, nil })
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSearch_Do_InterfaceVectorBadElement(t *testing.T) {
+	s := &Search{MilvusCli: &mockMilvusClient{}}
+	err := s.Do(context.Background(), map[string]any{
+		"collection": "c",
+		"vector":     []interface{}{1.0, "bad"},
+	}, func(any) (any, error) { return nil, nil })
+	if err == nil {
+		t.Fatalf("expected bad element error")
+	}
+}
+
+func TestSearch_Do_CallbackError(t *testing.T) {
+	cli := &mockMilvusClient{searchResult: []string{"r"}}
+	s := &Search{MilvusCli: cli}
+	expected := errors.New("cb error")
+	err := s.Do(context.Background(), map[string]any{
+		"collection": "c",
+		"vector":     []float32{0.1},
+	}, func(any) (any, error) { return nil, expected })
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected callback error, got: %v", err)
+	}
+}
