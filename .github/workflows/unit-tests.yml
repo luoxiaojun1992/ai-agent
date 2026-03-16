@@ -30,10 +30,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Run root unit tests
+      - name: Run root unit tests (no coverage)
+        run: go test ./...
+
+      - name: Run root unit tests (coverage scope)
         run: |
           set -euo pipefail
-          pkgs=$(go list ./... | grep -v '/pkg/milvus$' | grep -v '/pkg/mcp$' | grep -v '/pkg/ollama$' | grep -v '/util/testutil$')
+          pkgs=$(go list ./... | grep -v '/pkg/http$' | grep -v '/pkg/milvus$' | grep -v '/pkg/mcp$' | grep -v '/pkg/ollama$' | grep -v '/util/testutil$')
           coverpkgs=$(echo "$pkgs" | tr '\n' ',' | sed 's/,$//')
           go test $pkgs -coverpkg="$coverpkgs" -coverprofile=coverage.out
 
