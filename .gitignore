@@ -32,6 +32,7 @@ Thumbs.db
 # Logs
 logs/
 *.log
+coverage.out
 
 # Cache
 .cache/
