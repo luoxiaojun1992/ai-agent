@@ -12,6 +12,7 @@ import (
 	"github.com/luoxiaojun1992/ai-agent/pkg/milvus"
 	"github.com/luoxiaojun1992/ai-agent/pkg/ollama"
 	"github.com/luoxiaojun1992/ai-agent/skill"
+	"github.com/luoxiaojun1992/ai-agent/util/contextcompress"
 	"github.com/luoxiaojun1992/ai-agent/util/prompt"
 )
 
@@ -299,14 +300,6 @@ func NewMemory() *Memory {
 	return &Memory{}
 }
 
-func (m *Memory) getContextLength() int {
-	var length int
-	for _, context := range m.Contexts {
-		length += len(context.Content)
-	}
-	return length
-}
-
 type AgentDoubleOption struct {
 	config     *Config
 	agent      *Agent
@@ -486,6 +479,8 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 	var previousResponseCOntent string
 
 	for {
+		ad.compressContextByTokenBudget()
+
 		ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.Contexts))
 		for _, memCtx := range ad.memory.Contexts {
 			ollamaMessages = append(ollamaMessages, memCtx.toOllamaMessage())
@@ -561,10 +556,7 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 			}
 		}
 
-		//Forget memory due to the length limit of context
-		if ad.memory.getContextLength() > ad.config.ChatModelContextLimit {
-			ad.Forget(-1)
-		}
+		ad.compressContextByTokenBudget()
 
 		if ad.config.AgentMode != AgentModeLoop || prompt.ParseLoopEnd(responseContentStr) {
 			break
@@ -574,6 +566,48 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 	}
 
 	return nil
+}
+
+func (ad *AgentDouble) compressContextByTokenBudget() {
+	if ad.config == nil || ad.config.ChatModelContextLimit <= 0 || len(ad.memory.Contexts) <= 1 {
+		return
+	}
+
+	messages := make([]contextcompress.Message, 0, len(ad.memory.Contexts))
+	lastUserIdx := -1
+	for i := len(ad.memory.Contexts) - 1; i >= 0; i-- {
+		if ad.memory.Contexts[i].Role == "user" {
+			lastUserIdx = i
+			break
+		}
+	}
+
+	for i, memCtx := range ad.memory.Contexts {
+		messages = append(messages, contextcompress.Message{
+			Role:      memCtx.Role,
+			Content:   memCtx.Content,
+			Images:    append(make([]string, 0, len(memCtx.Images)), memCtx.Images...),
+			Protected: memCtx.Role == "system" || i == lastUserIdx,
+		})
+	}
+
+	compressed := contextcompress.NewCompressor(contextcompress.Config{
+		BudgetTokens:           ad.config.ChatModelContextLimit,
+		ReserveTokens:          256,
+		Model:                  ad.config.ChatModel,
+		NearDuplicateThreshold: 0.90,
+	}).Compress(messages)
+
+	newMemory := make([]*MemoryCtx, 0, len(compressed))
+	for _, msg := range compressed {
+		newMemory = append(newMemory, &MemoryCtx{
+			Role:    msg.Role,
+			Content: msg.Content,
+			Images:  append(make([]string, 0, len(msg.Images)), msg.Images...),
+		})
+	}
+
+	ad.memory.Contexts = newMemory
 }
 
 func (ad *AgentDouble) ListenAndWatch(ctx context.Context, message string, images []string, callback func(response string) error) error {
