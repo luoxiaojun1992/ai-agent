@@ -1,0 +1,86 @@
+name: Release Tag And Bump Service Dependency
+
+on:
+  workflow_run:
+    workflows: ["Unit Tests"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  tag-and-bump:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.head_branch == 'master' || github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ai-agent-svc/go.mod
+          cache: true
+
+      - name: Create and push next semantic tag
+        id: semver_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          latest_tag=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
+          if [[ -z "$latest_tag" ]]; then
+            latest_tag="v0.0.0"
+          fi
+
+          if [[ ! "$latest_tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Latest tag '$latest_tag' is not semver vX.Y.Z"
+            exit 1
+          fi
+
+          major="${BASH_REMATCH[1]}"
+          minor="${BASH_REMATCH[2]}"
+          patch="${BASH_REMATCH[3]}"
+          next_tag="v${major}.${minor}.$((patch + 1))"
+
+          git tag -a "$next_tag" -m "Release $next_tag"
+          git push origin "$next_tag"
+
+          echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Bump ai-agent dependency in service module
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ai-agent-svc
+          go get github.com/luoxiaojun1992/ai-agent@${{ steps.semver_tag.outputs.tag }}
+          go mod tidy
+
+      - name: Create pull request for service module bump
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/bump-ai-agent-svc-${{ steps.semver_tag.outputs.tag }}
+          base: ${{ github.event.workflow_run.head_branch }}
+          commit-message: "chore(ai-agent-svc): bump ai-agent to ${{ steps.semver_tag.outputs.tag }}"
+          title: "chore(ai-agent-svc): bump ai-agent to ${{ steps.semver_tag.outputs.tag }}"
+          body: |
+            Automated dependency update after successful Unit Tests.
+
+            - New tag: `${{ steps.semver_tag.outputs.tag }}`
+            - Updated files:
+              - `ai-agent-svc/go.mod`
+              - `ai-agent-svc/go.sum`
+          add-paths: |
+            ai-agent-svc/go.mod
+            ai-agent-svc/go.sum
+          labels: |
+            automated
+            dependencies
