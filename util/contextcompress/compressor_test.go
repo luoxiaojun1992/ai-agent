@@ -61,3 +61,55 @@ func TestCompressor_RespectProtectedMessagesUnderBudgetPressure(t *testing.T) {
 		t.Fatalf("expected protected system/user messages to be preserved")
 	}
 }
+
+func TestCompressor_FoldNearDuplicateMixedLanguage(t *testing.T) {
+	compressor := NewCompressor(Config{
+		BudgetTokens:           35,
+		ReserveTokens:          0,
+		Model:                  "qwen3:4b",
+		NearDuplicateThreshold: 0.75,
+	})
+
+	input := []Message{
+		{Role: "system", Content: "保持关键约束", Protected: true},
+		{Role: "assistant", Content: "请帮我总结 this API design and keep all constraints"},
+		{Role: "assistant", Content: "请帮我总结 this api design and keep all constraints."},
+		{Role: "user", Content: "继续", Protected: true},
+	}
+
+	output := compressor.Compress(input)
+	if len(output) >= len(input) {
+		t.Fatalf("expected mixed-language near-duplicates to be folded, input=%d output=%d", len(input), len(output))
+	}
+}
+
+func TestCompressor_FoldNearDuplicateCodeSnippets(t *testing.T) {
+	compressor := NewCompressor(Config{
+		BudgetTokens:           22,
+		ReserveTokens:          0,
+		Model:                  "",
+		NearDuplicateThreshold: 0.70,
+	})
+
+	input := []Message{
+		{Role: "assistant", Content: "func add(a int, b int) int { return a + b }"},
+		{Role: "assistant", Content: "func add(a int,b int) int { return a+b }"},
+		{Role: "assistant", Content: "func sub(a int, b int) int { return a - b }"},
+	}
+
+	output := compressor.Compress(input)
+	if len(output) >= len(input) {
+		t.Fatalf("expected similar code snippets to be folded, input=%d output=%d", len(input), len(output))
+	}
+
+	foundSub := false
+	for _, msg := range output {
+		if msg.Content == "func sub(a int, b int) int { return a - b }" {
+			foundSub = true
+			break
+		}
+	}
+	if !foundSub {
+		t.Fatalf("expected non-duplicate code snippet to be preserved")
+	}
+}

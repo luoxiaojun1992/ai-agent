@@ -77,20 +77,22 @@ func NewServer() (*Server, error) {
 		Port:        getEnv("PORT", "8080"),
 		CORSOrigins: []string{"*"}, // Default to allow all origins
 		AgentConfig: &ai_agent.Config{
-			ChatModel:             getEnv("CHAT_MODEL", "qwen3:4b"),
-			EmbeddingModel:        getEnv("EMBEDDING_MODEL", "nomic-embed-text"),
-			SupervisorModel:       getEnv("SUPERVISOR_MODEL", "qwen3:4b"),
-			ModelTemperature:      getFloat32Env("MODEL_TEMPERATURE", 0.1),
-			SupervisorSwitch:      getBoolEnv("SUPERVISOR_SWITCH", false),
-			OllamaHost:            getEnv("OLLAMA_HOST", "http://ollama:11434"),
-			MilvusHost:            getEnv("MILVUS_HOST", "milvus:19530"),
-			MilvusCollection:      getEnv("MILVUS_COLLECTION", "ai_agent_memory"),
-			HttpTimeout:           30 * time.Second,
-			HttpAllowRedirects:    true,
-			HttpMaxRedirects:      5,
-			ChatModelContextLimit: 1000000,
-			AgentMode:             ai_agent.AgentMode(getEnv("AGENT_MODE", string(ai_agent.AgentModeChat))),
-			AgentLoopDuration:     1 * time.Second,
+			ChatModel:              getEnv("CHAT_MODEL", "qwen3:4b"),
+			EmbeddingModel:         getEnv("EMBEDDING_MODEL", "nomic-embed-text"),
+			SupervisorModel:        getEnv("SUPERVISOR_MODEL", "qwen3:4b"),
+			ModelTemperature:       getFloat32Env("MODEL_TEMPERATURE", 0.1),
+			SupervisorSwitch:       getBoolEnv("SUPERVISOR_SWITCH", false),
+			OllamaHost:             getEnv("OLLAMA_HOST", "http://ollama:11434"),
+			MilvusHost:             getEnv("MILVUS_HOST", "milvus:19530"),
+			MilvusCollection:       getEnv("MILVUS_COLLECTION", "ai_agent_memory"),
+			HttpTimeout:            30 * time.Second,
+			HttpAllowRedirects:     true,
+			HttpMaxRedirects:       5,
+			ChatModelContextLimit:  1000000,
+			ContextReserveTokens:   getIntEnv("CONTEXT_RESERVE_TOKENS", 256),
+			NearDuplicateThreshold: getFloat64Env("NEAR_DUPLICATE_THRESHOLD", 0.90),
+			AgentMode:              ai_agent.AgentMode(getEnv("AGENT_MODE", string(ai_agent.AgentModeChat))),
+			AgentLoopDuration:      1 * time.Second,
 		},
 		AgentCharacter: getEnv("AGENT_CHARACTER", "I am a helpful AI assistant."),
 		AgentRole:      getEnv("AGENT_ROLE", "AI Assistant"),
@@ -534,6 +536,28 @@ func getFloat32Env(key string, defaultValue float32) float32 {
 			log.Fatal("Error parsing environment variable", key, ":", err)
 		}
 		return float32(valueFloat)
+	}
+	return defaultValue
+}
+
+func getFloat64Env(key string, defaultValue float64) float64 {
+	if value := os.Getenv(key); value != "" {
+		valueFloat, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			log.Fatal("Error parsing environment variable", key, ":", err)
+		}
+		return valueFloat
+	}
+	return defaultValue
+}
+
+func getIntEnv(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		valueInt, err := strconv.Atoi(value)
+		if err != nil {
+			log.Fatal("Error parsing environment variable", key, ":", err)
+		}
+		return valueInt
 	}
 	return defaultValue
 }

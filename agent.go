@@ -41,11 +41,18 @@ type Config struct {
 	HttpAllowRedirects bool
 	HttpMaxRedirects   int
 
-	ChatModelContextLimit int
+	ChatModelContextLimit  int
+	ContextReserveTokens   int
+	NearDuplicateThreshold float64
 
 	AgentMode         AgentMode
 	AgentLoopDuration time.Duration
 }
+
+const (
+	defaultContextReserveTokens   = 256
+	defaultNearDuplicateThreshold = 0.90
+)
 
 type personalInfo struct {
 	character string
@@ -591,11 +598,21 @@ func (ad *AgentDouble) compressContextByTokenBudget() {
 		})
 	}
 
+	reserveTokens := ad.config.ContextReserveTokens
+	if reserveTokens <= 0 {
+		reserveTokens = defaultContextReserveTokens
+	}
+
+	nearDuplicateThreshold := ad.config.NearDuplicateThreshold
+	if nearDuplicateThreshold <= 0 {
+		nearDuplicateThreshold = defaultNearDuplicateThreshold
+	}
+
 	compressed := contextcompress.NewCompressor(contextcompress.Config{
 		BudgetTokens:           ad.config.ChatModelContextLimit,
-		ReserveTokens:          256,
+		ReserveTokens:          reserveTokens,
 		Model:                  ad.config.ChatModel,
-		NearDuplicateThreshold: 0.90,
+		NearDuplicateThreshold: nearDuplicateThreshold,
 	}).Compress(messages)
 
 	newMemory := make([]*MemoryCtx, 0, len(compressed))

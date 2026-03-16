@@ -185,6 +185,8 @@ Then modify the `.env` file according to your environment.
 | `EMBEDDING_MODEL` | Model name for text embeddings | `nomic-embed-text` |
 | `OLLAMA_HOST` | Host address for Ollama service | `http://ollama:11434` |
 | `MILVUS_HOST` | Host address for Milvus vector database | `milvus:19530` |
+| `CONTEXT_RESERVE_TOKENS` | Reserved token budget for model output and safety margin | `256` |
+| `NEAR_DUPLICATE_THRESHOLD` | Near-duplicate folding threshold (0-1, larger is stricter) | `0.90` |
 
 #### UI Backend
 ```env
@@ -201,6 +203,8 @@ CHAT_MODEL=qwen3:0.6b
 EMBEDDING_MODEL=nomic-embed-text
 OLLAMA_HOST=http://ollama:11434
 MILVUS_HOST=milvus:19530
+CONTEXT_RESERVE_TOKENS=256
+NEAR_DUPLICATE_THRESHOLD=0.90
 ```
 
 ## 📚 API Documentation
