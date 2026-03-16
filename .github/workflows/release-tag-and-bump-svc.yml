@@ -1,4 +1,4 @@
-name: Release Tag And Bump Service Dependency
+name: Release Tag
 
 on:
   workflow_run:
@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   tag-and-bump:
@@ -27,8 +26,45 @@ jobs:
           go-version-file: ai-agent-svc/go.mod
           cache: true
 
+      - name: Detect root Go project changes
+        id: detect_root_changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          head_sha="${{ github.event.workflow_run.head_sha }}"
+          parent_sha=$(git rev-list --parents -n 1 "$head_sha" | awk '{print $2}')
+
+          if [[ -z "${parent_sha:-}" ]]; then
+            changed_files=$(git show --name-only --pretty='' "$head_sha")
+          else
+            changed_files=$(git diff --name-only "$parent_sha" "$head_sha")
+          fi
+
+          echo "Changed files:" 
+          echo "$changed_files"
+
+          should_tag=false
+          while IFS= read -r file; do
+            case "$file" in
+              agent.go|checkpoint.go|go.mod|go.sum|pkg/*|skill/*|util/*)
+                should_tag=true
+                break
+                ;;
+              *)
+                ;;
+            esac
+          done <<< "$changed_files"
+
+          echo "should_tag=$should_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Skip tag when no root Go project change
+        if: ${{ steps.detect_root_changes.outputs.should_tag != 'true' }}
+        run: echo "No root Go project changes detected; skip tag creation."
+
       - name: Create and push next semantic tag
         id: semver_tag
+        if: ${{ steps.detect_root_changes.outputs.should_tag == 'true' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -55,32 +91,3 @@ jobs:
           git push origin "$next_tag"
 
           echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
-
-      - name: Bump ai-agent dependency in service module
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd ai-agent-svc
-          go get github.com/luoxiaojun1992/ai-agent@${{ steps.semver_tag.outputs.tag }}
-          go mod tidy
-
-      - name: Create pull request for service module bump
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: chore/bump-ai-agent-svc-${{ steps.semver_tag.outputs.tag }}
-          base: ${{ github.event.workflow_run.head_branch }}
-          commit-message: "chore(ai-agent-svc): bump ai-agent to ${{ steps.semver_tag.outputs.tag }}"
-          title: "chore(ai-agent-svc): bump ai-agent to ${{ steps.semver_tag.outputs.tag }}"
-          body: |
-            Automated dependency update after successful Unit Tests.
-
-            - New tag: `${{ steps.semver_tag.outputs.tag }}`
-            - Updated files:
-              - `ai-agent-svc/go.mod`
-              - `ai-agent-svc/go.sum`
-          add-paths: |
-            ai-agent-svc/go.mod
-            ai-agent-svc/go.sum
-          labels: |
-            automated
-            dependencies
