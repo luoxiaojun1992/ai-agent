@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -192,6 +193,10 @@ func TestValidateRemovePath_CurrentDir(t *testing.T) {
 }
 
 func TestValidateRemovePath_SystemDirPrefix(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("system dir prefix check uses Unix-style protected dirs")
+	}
+
 	err := validateRemovePath("/dev/null")
 	if err == nil {
 		t.Fatalf("expected system directory rejection error")

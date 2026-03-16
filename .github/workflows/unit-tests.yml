@@ -13,6 +13,9 @@ on:
 permissions:
   contents: read
 
+env:
+  MIN_COVERAGE: "85"
+
 jobs:
   go-root-tests:
     name: Go Root Tests
@@ -28,4 +31,14 @@ jobs:
           cache: true
 
       - name: Run root unit tests
-        run: go test ./...
+        run: |
+          set -euo pipefail
+          pkgs=$(go list ./... | grep -v '/pkg/milvus$' | grep -v '/pkg/mcp$' | grep -v '/pkg/ollama$')
+          coverpkgs=$(echo "$pkgs" | tr '\n' ',' | sed 's/,$//')
+          go test $pkgs -coverpkg="$coverpkgs" -coverprofile=coverage.out
+
+      - name: Enforce minimum coverage
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')
+          echo "Total coverage: ${total}%"
+          awk -v total="$total" -v min="$MIN_COVERAGE" 'BEGIN { if (total+0 < min+0) { printf("Coverage %.1f%% is below minimum %.1f%%\n", total, min); exit 1 } }'
