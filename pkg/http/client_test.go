@@ -149,3 +149,16 @@ func TestClient_SendRequest_StringBody(t *testing.T) {
 		t.Fatalf("unexpected error with string body: %v", err)
 	}
 }
+
+func TestClient_SendRequest_ResponseBodyTooLarge(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(bytes.Repeat([]byte("a"), maxResponseBodySize+1))
+	}))
+	defer server.Close()
+
+	cli := NewHTTPClient(5*time.Second, true, 5)
+	if _, err := cli.Get(server.URL, nil, nil); err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("expected response body too large error, got: %v", err)
+	}
+}

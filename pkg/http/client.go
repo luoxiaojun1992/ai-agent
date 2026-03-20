@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	HeaderContentType = "Content-Type"
-	ContentTypeJson   = "application/json"
+	HeaderContentType   = "Content-Type"
+	ContentTypeJson     = "application/json"
+	maxResponseBodySize = 10 * 1024 * 1024
 )
 
 type IClient interface {
@@ -144,9 +145,12 @@ func (c *Client) SendRequest(method, path string, body any, queryParams url.Valu
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodySize+1))
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %v", err)
+	}
+	if len(bodyBytes) > maxResponseBodySize {
+		return nil, fmt.Errorf("response body too large")
 	}
 
 	return &Response{

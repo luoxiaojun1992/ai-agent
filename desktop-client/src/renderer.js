@@ -284,9 +284,12 @@ function addMessage(content, sender, isError = false) {
     contentDiv.className = 'message-content';
     
     if (isError) {
-        contentDiv.innerHTML = `<span style="color: #dc3545;">${content}</span>`;
+        const errSpan = document.createElement('span');
+        errSpan.style.color = '#dc3545';
+        errSpan.textContent = content;
+        contentDiv.appendChild(errSpan);
     } else {
-        contentDiv.innerHTML = marked.parse(content);
+        contentDiv.textContent = content;
     }
     
     bubbleDiv.appendChild(contentDiv);
@@ -336,7 +339,11 @@ function addStreamingMessage() {
 
 // Update streaming message
 function updateStreamingMessage(messageElement, content) {
-    messageElement.contentDiv.innerHTML = marked.parse(content) + '<span class="cursor">▋</span>';
+    messageElement.contentDiv.textContent = content;
+    const cursorSpan = document.createElement('span');
+    cursorSpan.className = 'cursor';
+    cursorSpan.textContent = '▋';
+    messageElement.contentDiv.appendChild(cursorSpan);
     
     const chatMessages = document.getElementById('chatMessages');
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -345,9 +352,13 @@ function updateStreamingMessage(messageElement, content) {
 // Finalize streaming message
 function finalizeStreamingMessage(messageElement, content, error = null) {
     if (error) {
-        messageElement.contentDiv.innerHTML = `<span style="color: #dc3545;">${error}</span>`;
+        messageElement.contentDiv.textContent = '';
+        const errSpan = document.createElement('span');
+        errSpan.style.color = '#dc3545';
+        errSpan.textContent = error;
+        messageElement.contentDiv.appendChild(errSpan);
     } else if (content !== null) {
-        messageElement.contentDiv.innerHTML = marked.parse(content);
+        messageElement.contentDiv.textContent = content;
     }
     
     // Remove streaming indicator

@@ -1,6 +1,7 @@
 package ollama
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -127,5 +128,18 @@ func TestClient_EmbeddingPrompt_InvalidResponseJSON(t *testing.T) {
 	cli := NewClient(&Config{Host: server.URL})
 	if _, err := cli.EmbeddingPrompt(&EmbedRequest{Model: "m", Input: "x"}); err == nil {
 		t.Fatalf("expected unmarshal error")
+	}
+}
+
+func TestClient_EmbeddingPrompt_ResponseBodyTooLarge(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(bytes.Repeat([]byte("a"), maxEmbedResponseBodySize+1))
+	}))
+	defer server.Close()
+
+	cli := NewClient(&Config{Host: server.URL})
+	if _, err := cli.EmbeddingPrompt(&EmbedRequest{Model: "m", Input: "x"}); err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("expected response body too large error, got: %v", err)
 	}
 }

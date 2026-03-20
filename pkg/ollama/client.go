@@ -59,6 +59,8 @@ type Client struct {
 	config *Config
 }
 
+const maxEmbedResponseBodySize = 10 * 1024 * 1024
+
 func NewClient(config *Config) *Client {
 	return &Client{
 		config: config,
@@ -86,9 +88,12 @@ func (c *Client) EmbeddingPrompt(embedReq *EmbedRequest) (*EmbedResponse, error)
 		return nil, fmt.Errorf("error embedding prompt, status code %d", resp.StatusCode)
 	}
 
-	embedResponseBytes, err := io.ReadAll(resp.Body)
+	embedResponseBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxEmbedResponseBodySize+1))
 	if err != nil {
 		return nil, err
+	}
+	if len(embedResponseBytes) > maxEmbedResponseBodySize {
+		return nil, fmt.Errorf("embedding response body too large")
 	}
 
 	embedResponse := &EmbedResponse{}

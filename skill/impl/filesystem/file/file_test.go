@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -58,10 +57,11 @@ func TestWriterReaderAndRemover_Do(t *testing.T) {
 	}
 }
 
-func TestValidateRemovePath_RejectDangerousPath(t *testing.T) {
-	err := validateRemovePath("/")
+func TestResolvePathWithinRoot_RejectDangerousPath(t *testing.T) {
+	root := t.TempDir()
+	_, err := resolvePathWithinRoot(root, "../x")
 	if err == nil {
-		t.Fatalf("expected dangerous path to be rejected")
+		t.Fatalf("expected escape path to be rejected")
 	}
 }
 
@@ -130,8 +130,8 @@ func TestReader_Do_CallbackError(t *testing.T) {
 		t.Fatalf("setup failed: %v", err)
 	}
 	expected := errors.New("cb error")
-	r := &Reader{}
-	err := r.Do(context.Background(), map[string]any{"path": path}, func(any) (any, error) { return nil, expected })
+	r := &Reader{RootDir: dir}
+	err := r.Do(context.Background(), map[string]any{"path": "test.txt"}, func(any) (any, error) { return nil, expected })
 	if !errors.Is(err, expected) {
 		t.Fatalf("expected callback error, got: %v", err)
 	}
@@ -182,26 +182,16 @@ func TestRemover_Do_EmptyPath(t *testing.T) {
 	}
 }
 
-func TestValidateRemovePath_CurrentDir(t *testing.T) {
-	err := validateRemovePath(".")
-	if err == nil {
-		t.Fatalf("expected current directory rejection error")
-	}
-	if !strings.Contains(err.Error(), "current directory") {
-		t.Fatalf("unexpected error: %v", err)
+func TestResolvePathWithinRoot_CurrentDir(t *testing.T) {
+	_, err := resolvePathWithinRoot(t.TempDir(), ".")
+	if err != nil {
+		t.Fatalf("expected current directory path to be valid, got: %v", err)
 	}
 }
 
-func TestValidateRemovePath_SystemDirPrefix(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("system dir prefix check uses Unix-style protected dirs")
-	}
-
-	err := validateRemovePath("/dev/null")
+func TestResolvePathWithinRoot_EmptyPath(t *testing.T) {
+	_, err := resolvePathWithinRoot(t.TempDir(), "")
 	if err == nil {
-		t.Fatalf("expected system directory rejection error")
-	}
-	if !strings.Contains(err.Error(), "system") {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("expected empty path rejection error")
 	}
 }

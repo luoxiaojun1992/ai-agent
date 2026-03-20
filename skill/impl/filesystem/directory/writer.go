@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 )
 
 type Writer struct {
@@ -37,9 +36,10 @@ func (w *Writer) Do(_ context.Context, cmdCtx any, _ func(output any) (any, erro
 		return errors.New("error converting path from params")
 	}
 
-	// Security: Clean the path to prevent directory traversal
-	cleanPath := filepath.Clean(pathStr)
-	fullPath := filepath.Join(w.RootDir, cleanPath)
+	fullPath, err := resolvePathWithinRoot(w.RootDir, pathStr)
+	if err != nil {
+		return err
+	}
 
 	return os.MkdirAll(fullPath, 0755)
 }
