@@ -20,7 +20,9 @@ services:
   ui-backend:
     build:
       context: ./ui-backend
-      dockerfile: Dockerfile.ci
+      dockerfile: Dockerfile
+      args:
+        INSTALL_SYSTEM_DEPS: "false"
     environment:
       - PORT=3001
       - CORS_ORIGIN=http://localhost:3000
