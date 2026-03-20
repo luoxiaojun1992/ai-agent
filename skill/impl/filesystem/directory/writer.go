@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"os"
+
+	"github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/pathutil"
 )
 
 type Writer struct {
@@ -36,7 +38,7 @@ func (w *Writer) Do(_ context.Context, cmdCtx any, _ func(output any) (any, erro
 		return errors.New("error converting path from params")
 	}
 
-	fullPath, err := resolvePathWithinRoot(w.RootDir, pathStr)
+	fullPath, err := pathutil.ResolvePathWithinRoot(w.RootDir, pathStr)
 	if err != nil {
 		return err
 	}

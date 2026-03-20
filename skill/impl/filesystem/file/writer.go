@@ -5,7 +5,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/pathutil"
 )
 
 type Writer struct {
@@ -48,7 +49,7 @@ func (w *Writer) Do(_ context.Context, cmdCtx any, _ func(output any) (any, erro
 		return errors.New("error converting content from params")
 	}
 
-	fullPath, err := resolvePathWithinRoot(w.RootDir, pathStr)
+	fullPath, err := pathutil.ResolvePathWithinRoot(w.RootDir, pathStr)
 	if err != nil {
 		return err
 	}
@@ -60,39 +61,4 @@ func (w *Writer) Do(_ context.Context, cmdCtx any, _ func(output any) (any, erro
 	}
 
 	return os.WriteFile(fullPath, []byte(contentStr), 0644)
-}
-
-func resolvePathWithinRoot(rootDir, pathStr string) (string, error) {
-	if strings.TrimSpace(pathStr) == "" {
-		return "", errors.New("path cannot be empty")
-	}
-	if rootDir == "" {
-		rootDir = "."
-	}
-
-	rootAbs, err := filepath.Abs(rootDir)
-	if err != nil {
-		return "", err
-	}
-
-	cleanPath := filepath.Clean(pathStr)
-	fullPath := cleanPath
-	if !filepath.IsAbs(cleanPath) {
-		fullPath = filepath.Join(rootAbs, cleanPath)
-	}
-
-	fullAbs, err := filepath.Abs(fullPath)
-	if err != nil {
-		return "", err
-	}
-
-	rel, err := filepath.Rel(rootAbs, fullAbs)
-	if err != nil {
-		return "", err
-	}
-	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", errors.New("path escapes root directory")
-	}
-
-	return fullAbs, nil
 }

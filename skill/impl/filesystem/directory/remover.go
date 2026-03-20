@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"os"
+	"runtime"
+
+	"github.com/luoxiaojun1992/ai-agent/skill/impl/filesystem/pathutil"
 )
 
 type Remover struct {
@@ -37,10 +40,20 @@ func (r *Remover) Do(_ context.Context, cmdCtx any, _ func(output any) (any, err
 		return errors.New("error converting path from params")
 	}
 
-	fullPath, err := resolvePathWithinRoot(r.RootDir, pathStr)
+	fullPath, err := pathutil.ResolvePathWithinRoot(r.RootDir, pathStr)
 	if err != nil {
+		return err
+	}
+	if err := validateRemovePath(fullPath); err != nil {
 		return err
 	}
 
 	return os.RemoveAll(fullPath)
+}
+
+func validateRemovePath(absPath string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	return pathutil.ValidateNotSystemPath(absPath)
 }

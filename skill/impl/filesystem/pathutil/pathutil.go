@@ -1,4 +1,4 @@
-package directory
+package pathutil
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func resolvePathWithinRoot(rootDir, pathStr string) (string, error) {
+func ResolvePathWithinRoot(rootDir, pathStr string) (string, error) {
 	if strings.TrimSpace(pathStr) == "" {
 		return "", errors.New("path cannot be empty")
 	}
@@ -39,4 +39,22 @@ func resolvePathWithinRoot(rootDir, pathStr string) (string, error) {
 	}
 
 	return fullAbs, nil
+}
+
+func ValidateNotSystemPath(absPath string) error {
+	protectedRoots := []string{"/bin", "/etc", "/usr", "/var", "/sys", "/proc", "/dev"}
+	for _, root := range protectedRoots {
+		if isPathWithinBase(root, absPath) {
+			return errors.New("cannot delete system directories")
+		}
+	}
+	return nil
+}
+
+func isPathWithinBase(basePath, targetPath string) bool {
+	rel, err := filepath.Rel(basePath, targetPath)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
