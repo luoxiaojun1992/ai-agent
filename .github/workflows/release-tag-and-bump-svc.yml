@@ -2,7 +2,7 @@ name: Release Tag
 
 on:
   workflow_run:
-    workflows: ["Unit Tests"]
+    workflows: ["CI Tests"]
     types: [completed]
 
 permissions:
