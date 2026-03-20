@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   tag-and-bump:
@@ -91,3 +92,38 @@ jobs:
           git push origin "$next_tag"
 
           echo "tag=$next_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Update ai-agent-svc dependency and create PR
+        if: ${{ steps.detect_root_changes.outputs.should_tag == 'true' && steps.semver_tag.outputs.tag != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          next_tag="${{ steps.semver_tag.outputs.tag }}"
+          branch_name="chore/bump-ai-agent-${next_tag}"
+
+          # Create a new branch for the update
+          git checkout -b "$branch_name"
+
+          # Update go.mod with the new version
+          cd ai-agent-svc
+          go get "github.com/luoxiaojun1992/ai-agent@${next_tag}"
+          go mod tidy
+          cd ..
+
+          # Commit and push the changes
+          git add ai-agent-svc/go.mod ai-agent-svc/go.sum
+          git commit -m "chore: bump ai-agent to ${next_tag}"
+          git push origin "$branch_name"
+
+          # Create a pull request using GitHub CLI
+          gh pr create \
+            --title "chore: bump ai-agent to ${next_tag}" \
+            --body "Update ai-agent dependency to ${next_tag}" \
+            --base "${{ github.event.workflow_run.head_branch }}" \
+            --head "$branch_name"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
