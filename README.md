@@ -150,6 +150,14 @@ The mock service provides compatible endpoints:
 - `GET /memory`
 - `DELETE /memory`
 
+### API integration tests with Docker Compose
+You can run API integration tests (ui-backend + mock ai-agent-svc) with:
+
+```bash
+docker compose -f docker-compose.api-test.yml up --build --abort-on-container-exit --exit-code-from api-test-runner
+docker compose -f docker-compose.api-test.yml down -v
+```
+
 ## 🔧 Available Skills
 
 | Skill | Description |
