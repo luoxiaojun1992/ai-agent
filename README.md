@@ -122,6 +122,42 @@ docker-compose up --build -d
 - ✅ **Error Handling**: Invalid inputs and edge cases
 - ✅ **Integration**: End-to-end workflows
 
+### Mock AI Agent Service (for API/UI tests)
+For API tests and future UI tests, a lightweight mock service is available at:
+
+`/tests/mock/ai-agent-svc-mock`
+
+Start it locally:
+
+```bash
+cd tests/mock/ai-agent-svc-mock
+go run .
+```
+
+Optional port override:
+
+```bash
+MOCK_AI_AGENT_SVC_PORT=18081 go run .
+```
+
+The mock service provides compatible endpoints:
+- `GET /health`
+- `GET /status`
+- `POST /chat` (supports `stream: true` SSE mode)
+- `POST /skill`
+- `GET /config`
+- `PUT /config`
+- `GET /memory`
+- `DELETE /memory`
+
+### API integration tests with Docker Compose
+You can run API integration tests (ui-backend + mock ai-agent-svc) with:
+
+```bash
+docker compose -f docker-compose.api-test.yml up --build --abort-on-container-exit --exit-code-from api-test-runner
+docker compose -f docker-compose.api-test.yml down -v
+```
+
 ## 🔧 Available Skills
 
 | Skill | Description |

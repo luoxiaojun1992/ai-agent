@@ -178,10 +178,17 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`UI Backend service running on port ${PORT}`);
-  console.log(`CORS enabled for origin: ${corsOptions.origin}`);
-  console.log(`AI Agent Service URL: ${AI_AGENT_SVC_URL}`);
-});
+function startServer() {
+  return app.listen(PORT, () => {
+    console.log(`UI Backend service running on port ${PORT}`);
+    console.log(`CORS enabled for origin: ${corsOptions.origin}`);
+    console.log(`AI Agent Service URL: ${AI_AGENT_SVC_URL}`);
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
 
 module.exports = app;
+module.exports.startServer = startServer;

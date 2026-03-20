@@ -3,7 +3,8 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Install dependencies
-RUN apk add --no-cache git ca-certificates
+ARG INSTALL_SYSTEM_DEPS=true
+RUN if [ "$INSTALL_SYSTEM_DEPS" = "true" ]; then apk add --no-cache git ca-certificates; fi
 
 # Copy application code
 COPY . .

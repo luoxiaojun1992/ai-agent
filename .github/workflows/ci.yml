@@ -1,4 +1,4 @@
-name: Unit Tests
+name: CI Tests
 
 on:
   push:
@@ -15,6 +15,48 @@ env:
   MIN_COVERAGE: "85"
 
 jobs:
+  ui-backend-tests:
+    name: UI Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui-backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: ui-backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run UI backend tests
+        run: npm test -- --runInBand
+
+  api-compose-tests:
+    name: API Compose Tests
+    runs-on: ubuntu-latest
+    needs: ui-backend-tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run API tests with docker compose
+        run: docker compose -f docker-compose.api-test.yml up --build --abort-on-container-exit --exit-code-from api-test-runner
+
+      - name: Show compose logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.api-test.yml logs
+
+      - name: Tear down compose stack
+        if: always()
+        run: docker compose -f docker-compose.api-test.yml down -v
+
   go-root-tests:
     name: Go Root Tests
     runs-on: ubuntu-latest
