@@ -21,8 +21,6 @@ services:
     build:
       context: ./ui-backend
       dockerfile: Dockerfile
-      args:
-        INSTALL_SYSTEM_DEPS: "false"
     environment:
       - PORT=3001
       - CORS_ORIGIN=http://frontend

@@ -178,6 +178,13 @@ docker compose -f docker-compose.desktop-test.yml down -v
 
 Desktop Playwright test videos are recorded under `tests/desktop-test-runner/test-results`, and Allure raw results are generated in `tests/desktop-test-runner/allure-results`.
 
+Implementation note:
+- `desktop-client` and `tests/desktop-test-runner` are in different directories in the repo, but they are copied into the same Docker image for `desktop-test-runner`.
+- In `tests/desktop-test-runner/Dockerfile`, the runner copies `./desktop-client` to `/app/desktop-client` and installs its dependencies there.
+- Playwright then launches Electron with:
+  - executable: `/app/desktop-client/node_modules/.bin/electron`
+  - app path arg: `/app/desktop-client`
+
 ## 🔧 Available Skills
 
 | Skill | Description |
