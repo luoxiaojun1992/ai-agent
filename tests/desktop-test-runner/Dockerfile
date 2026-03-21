@@ -7,7 +7,9 @@ RUN npm ci
 
 COPY playwright.config.js ./
 COPY tests ./tests
+COPY start-desktop-tests.sh ./start-desktop-tests.sh
+RUN chmod +x /app/start-desktop-tests.sh
 
 RUN mkdir -p /app/allure-results /app/test-results /app/artifacts
 
-CMD ["xvfb-run", "-a", "npm", "test"]
+CMD ["/app/start-desktop-tests.sh"]

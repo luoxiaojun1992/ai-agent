@@ -49,13 +49,6 @@ services:
       - DESKTOP_CLIENT_PATH=/app/desktop-client
     volumes:
       - ./desktop-client:/app/workspace/desktop-client:ro
-    command: >
-      sh -lc "rm -rf /app/desktop-client &&
-      cp -a /app/workspace/desktop-client /app/desktop-client &&
-      cd /app/desktop-client &&
-      npm ci &&
-      cd /app &&
-      xvfb-run -a npm test"
     depends_on:
       ui-backend:
         condition: service_healthy

@@ -2,7 +2,8 @@ FROM golang:1.25-alpine AS builder
 
 WORKDIR /src
 COPY . .
-RUN CGO_ENABLED=0 GO111MODULE=off GOOS=linux GOARCH=amd64 go build -o /out/mock-ai-agent-svc .
+RUN go mod init mock-ai-agent-svc
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/mock-ai-agent-svc .
 
 FROM alpine:3.22
 RUN addgroup -S app && adduser -S app -G app
