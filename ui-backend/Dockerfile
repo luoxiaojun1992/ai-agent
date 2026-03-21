@@ -2,6 +2,8 @@ FROM node:18-alpine
 
 WORKDIR /app
 
+RUN apk add --no-cache git ca-certificates
+
 # Copy application code
 COPY . .
 
