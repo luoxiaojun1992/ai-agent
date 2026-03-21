@@ -13,8 +13,6 @@ test('desktop client can send blocking chat message', async ({}, testInfo) => {
       ELECTRON_DISABLE_SANDBOX: '1',
     },
   });
-  const electronChildProcess = app.process();
-
   try {
     const page = await app.firstWindow();
 
@@ -36,10 +34,7 @@ test('desktop client can send blocking chat message', async ({}, testInfo) => {
 
     await page.screenshot({ path: 'artifacts/desktop-ui.png', fullPage: true });
   } finally {
-    await app.evaluate(({ app }) => app.quit()).catch(() => {});
-    if (electronChildProcess && electronChildProcess.exitCode === null && !electronChildProcess.killed) {
-      electronChildProcess.kill('SIGTERM');
-    }
-    await app.close().catch(() => {});
+    await app.evaluate(({ app }) => app.quit());
+    await app.close();
   }
 });
