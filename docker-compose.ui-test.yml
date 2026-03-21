@@ -1,8 +1,8 @@
 services:
   mock-ai-agent-svc:
     build:
-      context: .
-      dockerfile: ./tests/mock/ai-agent-svc-mock/Dockerfile
+      context: ./tests/mock/ai-agent-svc-mock
+      dockerfile: Dockerfile
     environment:
       - MOCK_AI_AGENT_SVC_PORT=18080
     ports:
