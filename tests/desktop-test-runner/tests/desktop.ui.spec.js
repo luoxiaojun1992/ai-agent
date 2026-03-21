@@ -3,8 +3,9 @@ const { test, expect, _electron: electron } = require('@playwright/test');
 
 test('desktop client can send blocking chat message', async ({}, testInfo) => {
   const desktopClientPath = testInfo.project.use.desktopClientPath;
+  const electronExecutablePath = path.join(desktopClientPath, 'node_modules', 'electron', 'dist', 'electron');
   const app = await electron.launch({
-    executablePath: path.join(desktopClientPath, 'node_modules', '.bin', 'electron'),
+    executablePath: electronExecutablePath,
     args: [desktopClientPath],
     env: {
       ...process.env,
@@ -34,6 +35,7 @@ test('desktop client can send blocking chat message', async ({}, testInfo) => {
 
     await page.screenshot({ path: 'artifacts/desktop-ui.png', fullPage: true });
   } finally {
+    await app.evaluate(({ app }) => app.quit());
     await app.close();
   }
 });
