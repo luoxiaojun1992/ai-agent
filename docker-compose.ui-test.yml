@@ -1,0 +1,78 @@
+services:
+  mock-ai-agent-svc:
+    build:
+      context: .
+      dockerfile: ./tests/mock/ai-agent-svc-mock/Dockerfile
+    environment:
+      - MOCK_AI_AGENT_SVC_PORT=18080
+    ports:
+      - "18080:18080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:18080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      ui-test-network:
+        aliases:
+          - mock-agent-svc
+
+  ui-backend:
+    build:
+      context: ./ui-backend
+      dockerfile: Dockerfile
+      args:
+        INSTALL_SYSTEM_DEPS: "false"
+    environment:
+      - PORT=3001
+      - CORS_ORIGIN=http://frontend
+      - AI_AGENT_SVC_URL=http://host.docker.internal:18080
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mock-ai-agent-svc:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      ui-test-network:
+        aliases:
+          - ui-backend
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      ui-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ | grep -q 'AI Agent UI'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      ui-test-network:
+        aliases:
+          - frontend
+
+  ui-test-runner:
+    build:
+      context: ./tests/ui-test-runner
+      dockerfile: Dockerfile
+    container_name: ui-test-runner
+    environment:
+      - UI_BASE_URL=http://frontend
+    depends_on:
+      frontend:
+        condition: service_healthy
+      ui-backend:
+        condition: service_healthy
+    network_mode: service:ui-backend
+
+networks:
+  ui-test-network:
+    driver: bridge

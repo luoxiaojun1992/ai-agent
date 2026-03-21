@@ -158,6 +158,16 @@ docker compose -f docker-compose.api-test.yml up --build --abort-on-container-ex
 docker compose -f docker-compose.api-test.yml down -v
 ```
 
+### UI tests with Playwright + Docker Compose
+You can run frontend UI tests (frontend + ui-backend + mock ai-agent-svc + playwright runner) with:
+
+```bash
+docker compose -f docker-compose.ui-test.yml up --build --abort-on-container-exit --exit-code-from ui-test-runner
+docker compose -f docker-compose.ui-test.yml down -v
+```
+
+Playwright test videos are recorded under `tests/ui-test-runner/test-results`, and Allure raw results are generated in `tests/ui-test-runner/allure-results`.
+
 ## 🔧 Available Skills
 
 | Skill | Description |
