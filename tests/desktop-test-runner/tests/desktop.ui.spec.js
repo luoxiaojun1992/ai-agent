@@ -34,7 +34,6 @@ test('desktop client can send blocking chat message', async ({}, testInfo) => {
 
     await page.screenshot({ path: 'artifacts/desktop-ui.png', fullPage: true });
   } finally {
-    await app.evaluate(({ app }) => app.quit());
     await app.close();
   }
 });
