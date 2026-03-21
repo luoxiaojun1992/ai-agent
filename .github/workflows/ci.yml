@@ -94,14 +94,6 @@ jobs:
           npm ci
           npm run allure:generate
 
-      - name: Upload UI test video artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ui-playwright-videos
-          path: tests/ui-test-runner/test-results
-          if-no-files-found: warn
-
       - name: Upload UI screenshot artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -115,7 +107,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ui-allure-report
-          path: tests/ui-test-runner/allure-report
+          path: |
+            tests/ui-test-runner/allure-report
+            tests/ui-test-runner/test-results
           if-no-files-found: warn
 
       - name: Show UI compose logs on failure
@@ -163,14 +157,6 @@ jobs:
           npm ci
           npm run allure:generate
 
-      - name: Upload desktop test video artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: desktop-playwright-videos
-          path: tests/desktop-test-runner/test-results
-          if-no-files-found: warn
-
       - name: Upload desktop screenshot artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -184,7 +170,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: desktop-allure-report
-          path: tests/desktop-test-runner/allure-report
+          path: |
+            tests/desktop-test-runner/allure-report
+            tests/desktop-test-runner/test-results
           if-no-files-found: warn
 
       - name: Show desktop compose logs on failure
