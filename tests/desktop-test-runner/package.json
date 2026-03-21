@@ -1,0 +1,16 @@
+{
+  "name": "desktop-test-runner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright desktop tests for Electron client",
+  "scripts": {
+    "test": "playwright test",
+    "allure:generate": "allure generate allure-results --clean -o allure-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "allure-commandline": "^2.38.1",
+    "allure-playwright": "^3.6.0",
+    "playwright": "^1.58.2"
+  }
+}
