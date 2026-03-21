@@ -2,7 +2,7 @@
 set -eu
 
 cleanup() {
-  pids="$(pgrep -f '/app/desktop-client' || true)"
+  pids="$(pgrep -f '/app/desktop-client/node_modules/electron/dist/electron' || true)"
   if [ -n "${pids}" ]; then
     for pid in ${pids}; do
       kill -TERM "${pid}" 2>/dev/null || true
