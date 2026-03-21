@@ -42,3 +42,9 @@ coverage.out
 
 # Electron
 out/
+
+# Test runner artifacts
+tests/*-test-runner/allure-results/
+tests/*-test-runner/allure-report/
+tests/*-test-runner/test-results/
+tests/*-test-runner/artifacts/

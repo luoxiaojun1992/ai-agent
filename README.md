@@ -168,6 +168,23 @@ docker compose -f docker-compose.ui-test.yml down -v
 
 Playwright test videos are recorded under `tests/ui-test-runner/test-results`, and Allure raw results are generated in `tests/ui-test-runner/allure-results`.
 
+### Desktop client tests with Playwright + Docker Compose
+You can run desktop client UI tests (desktop-client + ui-backend + mock ai-agent-svc + playwright runner) with:
+
+```bash
+docker compose -f docker-compose.desktop-test.yml up --build --abort-on-container-exit --exit-code-from desktop-test-runner
+docker compose -f docker-compose.desktop-test.yml down -v
+```
+
+Desktop Playwright test videos are recorded under `tests/desktop-test-runner/test-results`, and Allure raw results are generated in `tests/desktop-test-runner/allure-results`.
+
+Implementation note:
+- `desktop-client` and `tests/desktop-test-runner` remain in different directories.
+- `desktop-test-runner` is built from `./tests/desktop-test-runner` only.
+- In `docker-compose.desktop-test.yml`, `./desktop-client` is mounted read-only to `/app/workspace/desktop-client`.
+- At container startup, runner copies it to `/app/desktop-client`, installs dependencies there, and passes `DESKTOP_CLIENT_PATH=/app/desktop-client`.
+- Playwright resolves Electron app path from `DESKTOP_CLIENT_PATH` and launches Electron from that copied desktop-client directory.
+
 ## 🔧 Available Skills
 
 | Skill | Description |
