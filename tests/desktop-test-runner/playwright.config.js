@@ -1,6 +1,10 @@
 const path = require('path');
 const { defineConfig } = require('@playwright/test');
 
+const desktopClientPath = process.env.DESKTOP_CLIENT_PATH
+  ? path.resolve(process.env.DESKTOP_CLIENT_PATH)
+  : path.join(__dirname, 'desktop-client');
+
 module.exports = defineConfig({
   testDir: './tests',
   timeout: 120000,
@@ -21,7 +25,7 @@ module.exports = defineConfig({
     {
       name: 'electron',
       use: {
-        desktopClientPath: path.join(__dirname, 'desktop-client'),
+        desktopClientPath,
       },
     },
   ],

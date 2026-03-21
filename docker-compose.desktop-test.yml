@@ -1,8 +1,8 @@
 services:
   mock-ai-agent-svc:
     build:
-      context: .
-      dockerfile: ./tests/mock/ai-agent-svc-mock/Dockerfile
+      context: ./tests/mock/ai-agent-svc-mock
+      dockerfile: Dockerfile
     environment:
       - MOCK_AI_AGENT_SVC_PORT=18080
     ports:
@@ -42,9 +42,20 @@ services:
 
   desktop-test-runner:
     build:
-      context: .
-      dockerfile: ./tests/desktop-test-runner/Dockerfile
+      context: ./tests/desktop-test-runner
+      dockerfile: Dockerfile
     container_name: desktop-test-runner
+    environment:
+      - DESKTOP_CLIENT_PATH=/app/desktop-client
+    volumes:
+      - ./desktop-client:/app/workspace/desktop-client:ro
+    command: >
+      sh -lc "rm -rf /app/desktop-client &&
+      cp -a /app/workspace/desktop-client /app/desktop-client &&
+      cd /app/desktop-client &&
+      npm ci &&
+      cd /app &&
+      xvfb-run -a npm test"
     depends_on:
       ui-backend:
         condition: service_healthy
