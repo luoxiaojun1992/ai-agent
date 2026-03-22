@@ -22,9 +22,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleScheduledTask: (taskId) => ipcRenderer.invoke('toggle-scheduled-task', taskId),
   executeScheduledTask: (taskId) => ipcRenderer.invoke('execute-scheduled-task', taskId),
   getTaskHistory: () => ipcRenderer.invoke('get-task-history'),
+  deleteTaskHistoryEntry: (historyId) => ipcRenderer.invoke('delete-task-history-entry', historyId),
+  resolveScheduledTaskPreparation: (payload) => ipcRenderer.invoke('resolve-scheduled-task-preparation', payload),
 
   // Scheduled task execution listener
   onScheduledTaskExecuted: (callback) => ipcRenderer.on('scheduled-task-executed', (event, data) => callback(data)),
+  onScheduledTaskBeforeExecute: (callback) => ipcRenderer.on('scheduled-task-before-execute', (event, data) => callback(data)),
+  onScheduledTaskRunState: (callback) => ipcRenderer.on('scheduled-task-run-state', (event, data) => callback(data)),
   removeScheduledTaskListener: () => ipcRenderer.removeAllListeners('scheduled-task-executed'),
 
   // Menu event listeners

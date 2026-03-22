@@ -6,6 +6,7 @@ let isLoading = false;
 let currentStreamController = null;
 let messageHistory = [];
 const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
+let scheduledTaskRunningCount = 0;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
@@ -375,10 +376,11 @@ function updateUIState() {
     const sendBtn = document.getElementById('sendBtn');
     const plannerBtn = document.getElementById('plannerBtn');
     const input = document.getElementById('messageInput');
+    const isTaskRunning = scheduledTaskRunningCount > 0;
     
-    if (isLoading) {
+    if (isLoading || isTaskRunning) {
         sendBtn.disabled = true;
-        sendBtn.innerHTML = '<div class="loading-spinner"></div>';
+        sendBtn.innerHTML = isLoading ? '<div class="loading-spinner"></div>' : 'Send';
         plannerBtn.disabled = true;
         input.disabled = true;
     } else {
@@ -680,6 +682,12 @@ async function initScheduledTasks() {
             showScheduledTaskNotification(data);
             refreshTaskHistory();
         });
+        window.electronAPI.onScheduledTaskBeforeExecute(async (data) => {
+            await handleScheduledTaskPreparation(data);
+        });
+        window.electronAPI.onScheduledTaskRunState((data) => {
+            handleScheduledTaskRunState(data);
+        });
 
         // Load scheduled tasks
         await loadScheduledTasks();
@@ -892,6 +900,55 @@ async function runScheduledTask(taskId) {
     }
 }
 
+function hasChatHistoryOrDraft() {
+    const input = document.getElementById('messageInput');
+    const hasDraft = !!(input && input.value.trim());
+    const hasHistory = Array.isArray(messageHistory) && messageHistory.length > 0;
+    return hasDraft || hasHistory;
+}
+
+async function handleScheduledTaskPreparation(data) {
+    if (!window.electronAPI || !data || !data.requestId) return;
+
+    const needsReset = hasChatHistoryOrDraft();
+    if (!needsReset) {
+        await window.electronAPI.resolveScheduledTaskPreparation({
+            requestId: data.requestId,
+            confirmed: true,
+            resetRequired: false
+        });
+        return;
+    }
+
+    const confirmed = confirm(`检测到当前聊天有历史记录或未发送内容。是否清空聊天并启动定时任务「${data.taskName || ''}」？`);
+    if (confirmed) {
+        clearChat();
+        const input = document.getElementById('messageInput');
+        if (input) {
+            input.value = '';
+        }
+    }
+
+    await window.electronAPI.resolveScheduledTaskPreparation({
+        requestId: data.requestId,
+        confirmed,
+        resetRequired: confirmed
+    });
+}
+
+function handleScheduledTaskRunState(data) {
+    if (!data || typeof data.running !== 'boolean') {
+        return;
+    }
+
+    if (data.running) {
+        scheduledTaskRunningCount += 1;
+    } else {
+        scheduledTaskRunningCount = Math.max(0, scheduledTaskRunningCount - 1);
+    }
+    updateUIState();
+}
+
 // Delete scheduled task
 async function deleteScheduledTask(taskId) {
     if (!window.electronAPI) return;
@@ -935,10 +992,14 @@ function renderTaskHistory(history) {
     container.innerHTML = history.slice(0, 10).map(item => `
         <div class="history-item ${item.isError ? 'error' : ''}">
             <div class="history-item-header">
-                <span>${item.taskId}</span>
+                <span>${escapeHtml(item.taskName || item.taskId || '')}</span>
                 <span>${formatDate(item.timestamp)}</span>
             </div>
-            <div class="history-item-result">${escapeHtml(item.result || item.result)}</div>
+            <div class="history-item-result">${escapeHtml(item.result || '')}</div>
+            <div class="task-item-actions" style="margin-top: 6px;">
+                <button class="task-action-btn run" onclick="viewTaskHistoryMemory('${item.id}')">View Memory</button>
+                <button class="task-action-btn delete" onclick="deleteTaskHistoryEntry('${item.id}')">Delete Record</button>
+            </div>
         </div>
     `).join('');
 }
@@ -953,4 +1014,48 @@ function formatDate(isoString) {
 // Show notification when scheduled task is executed
 function showScheduledTaskNotification(data) {
     showNotification(`Task "${data.taskName}" executed`, 'info');
+}
+
+function formatTaskMemory(contexts) {
+    if (!Array.isArray(contexts) || contexts.length === 0) {
+        return 'No memory saved for this task execution.';
+    }
+    return contexts.map((ctx, index) => {
+        const role = typeof ctx?.role === 'string' ? ctx.role : 'unknown';
+        const content = typeof ctx?.content === 'string' ? ctx.content : JSON.stringify(ctx);
+        return `${index + 1}. [${role}] ${content}`;
+    }).join('\n\n');
+}
+
+async function viewTaskHistoryMemory(historyId) {
+    if (!window.electronAPI || !historyId) return;
+    try {
+        const history = await window.electronAPI.getTaskHistory();
+        const item = Array.isArray(history) ? history.find(entry => entry.id === historyId) : null;
+        if (!item) {
+            showNotification('History record not found', 'error');
+            return;
+        }
+        alert(formatTaskMemory(item.contexts));
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+async function deleteTaskHistoryEntry(historyId) {
+    if (!window.electronAPI || !historyId) return;
+    if (!confirm('Delete this execution record and its local memory?')) {
+        return;
+    }
+    try {
+        const result = await window.electronAPI.deleteTaskHistoryEntry(historyId);
+        if (result.success) {
+            showNotification('Execution record deleted', 'success');
+            await refreshTaskHistory();
+        } else {
+            showNotification('Error: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
 }
