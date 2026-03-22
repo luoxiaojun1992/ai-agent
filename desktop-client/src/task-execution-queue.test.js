@@ -44,4 +44,6 @@ test('continues processing queue after a task failure', async () => {
 
   assert.equal(result, 'recovered');
   assert.equal(errors.length, 1);
+  assert.equal(errors[0][0], 'Scheduled task queue execution failed:');
+  assert.match(String(errors[0][1]), /boom/);
 });

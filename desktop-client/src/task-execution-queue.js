@@ -3,6 +3,8 @@ function createTaskExecutionQueue(logger = console) {
 
   return function enqueue(taskExecutor) {
     const executeTask = () => taskExecutor();
+    // Continue with the next queued task even if the previous task failed.
+    // This keeps queue availability while still returning each task's own result/error.
     const executePromise = queueTail.then(executeTask, executeTask);
 
     queueTail = executePromise.catch((error) => {
