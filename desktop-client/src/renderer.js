@@ -6,6 +6,7 @@ let isLoading = false;
 let currentStreamController = null;
 let messageHistory = [];
 const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
+const runningScheduledTaskIds = new Set();
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
@@ -61,6 +62,19 @@ function setupEventListeners() {
         radio.addEventListener('change', function() {
             updateStreamIndicator(this.value === 'streaming');
         });
+    });
+
+    document.addEventListener('click', async function(event) {
+        const viewBtn = event.target.closest('[data-history-action="view-memory"]');
+        if (viewBtn) {
+            await viewTaskHistoryMemory(viewBtn.dataset.historyId || '');
+            return;
+        }
+
+        const deleteBtn = event.target.closest('[data-history-action="delete-memory"]');
+        if (deleteBtn) {
+            await deleteTaskHistoryEntry(deleteBtn.dataset.historyId || '');
+        }
     });
 }
 
@@ -375,10 +389,11 @@ function updateUIState() {
     const sendBtn = document.getElementById('sendBtn');
     const plannerBtn = document.getElementById('plannerBtn');
     const input = document.getElementById('messageInput');
+    const isTaskRunning = runningScheduledTaskIds.size > 0;
     
-    if (isLoading) {
+    if (isLoading || isTaskRunning) {
         sendBtn.disabled = true;
-        sendBtn.innerHTML = '<div class="loading-spinner"></div>';
+        sendBtn.innerHTML = isLoading ? '<div class="loading-spinner"></div>' : 'Send';
         plannerBtn.disabled = true;
         input.disabled = true;
     } else {
@@ -680,6 +695,12 @@ async function initScheduledTasks() {
             showScheduledTaskNotification(data);
             refreshTaskHistory();
         });
+        window.electronAPI.onScheduledTaskBeforeExecute(async (data) => {
+            await handleScheduledTaskPreparation(data);
+        });
+        window.electronAPI.onScheduledTaskRunState((data) => {
+            handleScheduledTaskRunState(data);
+        });
 
         // Load scheduled tasks
         await loadScheduledTasks();
@@ -892,6 +913,60 @@ async function runScheduledTask(taskId) {
     }
 }
 
+function hasChatHistoryOrDraft() {
+    const input = document.getElementById('messageInput');
+    const hasDraft = !!(input && input.value.trim());
+    const hasHistory = Array.isArray(messageHistory) && messageHistory.length > 0;
+    return hasDraft || hasHistory;
+}
+
+async function handleScheduledTaskPreparation(data) {
+    if (!window.electronAPI || !data || !data.requestId) return;
+
+    const needsReset = hasChatHistoryOrDraft();
+    if (!needsReset) {
+        await window.electronAPI.resolveScheduledTaskPreparation({
+            requestId: data.requestId,
+            confirmed: true,
+            resetRequired: false
+        });
+        return;
+    }
+
+    const taskName = sanitizeDialogText(data.taskName || '');
+    const confirmed = confirm(`检测到当前聊天有历史记录或未发送内容。是否清空聊天并启动定时任务「${taskName}」？`);
+    if (confirmed) {
+        clearChat();
+        const input = document.getElementById('messageInput');
+        if (input) {
+            input.value = '';
+        }
+    }
+
+    await window.electronAPI.resolveScheduledTaskPreparation({
+        requestId: data.requestId,
+        confirmed,
+        resetRequired: confirmed
+    });
+}
+
+function handleScheduledTaskRunState(data) {
+    if (!data || typeof data.running !== 'boolean' || !data.taskId) {
+        return;
+    }
+
+    if (data.running) {
+        runningScheduledTaskIds.add(data.taskId);
+    } else {
+        runningScheduledTaskIds.delete(data.taskId);
+    }
+    updateUIState();
+}
+
+function sanitizeDialogText(text) {
+    return String(text).replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 120);
+}
+
 // Delete scheduled task
 async function deleteScheduledTask(taskId) {
     if (!window.electronAPI) return;
@@ -932,15 +1007,48 @@ function renderTaskHistory(history) {
         return;
     }
 
-    container.innerHTML = history.slice(0, 10).map(item => `
-        <div class="history-item ${item.isError ? 'error' : ''}">
-            <div class="history-item-header">
-                <span>${item.taskId}</span>
-                <span>${formatDate(item.timestamp)}</span>
-            </div>
-            <div class="history-item-result">${escapeHtml(item.result || item.result)}</div>
-        </div>
-    `).join('');
+    container.innerHTML = '';
+    history.slice(0, 10).forEach(item => {
+        const historyItem = document.createElement('div');
+        historyItem.className = `history-item ${item.isError ? 'error' : ''}`;
+
+        const header = document.createElement('div');
+        header.className = 'history-item-header';
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = item.taskName || item.taskId || '';
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = formatDate(item.timestamp);
+        header.appendChild(nameSpan);
+        header.appendChild(timeSpan);
+
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'history-item-result';
+        resultDiv.textContent = item.result || '';
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'task-item-actions';
+        actionsDiv.style.marginTop = '6px';
+
+        const viewBtn = document.createElement('button');
+        viewBtn.className = 'task-action-btn run';
+        viewBtn.textContent = 'View Memory';
+        viewBtn.setAttribute('data-history-action', 'view-memory');
+        viewBtn.setAttribute('data-history-id', item.id || '');
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'task-action-btn delete';
+        deleteBtn.textContent = 'Delete Record';
+        deleteBtn.setAttribute('data-history-action', 'delete-memory');
+        deleteBtn.setAttribute('data-history-id', item.id || '');
+
+        actionsDiv.appendChild(viewBtn);
+        actionsDiv.appendChild(deleteBtn);
+
+        historyItem.appendChild(header);
+        historyItem.appendChild(resultDiv);
+        historyItem.appendChild(actionsDiv);
+        container.appendChild(historyItem);
+    });
 }
 
 // Format date
@@ -953,4 +1061,81 @@ function formatDate(isoString) {
 // Show notification when scheduled task is executed
 function showScheduledTaskNotification(data) {
     showNotification(`Task "${data.taskName}" executed`, 'info');
+}
+
+function formatTaskMemory(contexts) {
+    if (!Array.isArray(contexts) || contexts.length === 0) {
+        return 'No memory saved for this task execution.';
+    }
+    return contexts.map((ctx, index) => {
+        const role = typeof ctx?.role === 'string' ? ctx.role : 'unknown';
+        const content = typeof ctx?.content === 'string' ? ctx.content : JSON.stringify(ctx);
+        return `${index + 1}. [${role}] ${content}`;
+    }).join('\n\n');
+}
+
+async function viewTaskHistoryMemory(historyId) {
+    if (!window.electronAPI || !historyId) return;
+    try {
+        const history = await window.electronAPI.getTaskHistory();
+        const item = Array.isArray(history) ? history.find(entry => entry.id === historyId) : null;
+        if (!item) {
+            showNotification('History record not found', 'error');
+            return;
+        }
+        showTaskMemoryModal(item.taskName || item.taskId || 'Task Memory', formatTaskMemory(item.contexts));
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+async function deleteTaskHistoryEntry(historyId) {
+    if (!window.electronAPI || !historyId) return;
+    if (!confirm('Delete this execution record and its local memory?')) {
+        return;
+    }
+    try {
+        const result = await window.electronAPI.deleteTaskHistoryEntry(historyId);
+        if (result.success) {
+            showNotification('Execution record deleted', 'success');
+            await refreshTaskHistory();
+        } else {
+            showNotification('Error: ' + result.error, 'error');
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+    }
+}
+
+function showTaskMemoryModal(title, content) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:11000;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'width:min(900px,95vw);max-height:85vh;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'padding:12px 16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;';
+    const headerTitle = document.createElement('strong');
+    headerTitle.textContent = title;
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.className = 'task-action-btn delete';
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(headerTitle);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('pre');
+    body.style.cssText = 'margin:0;padding:14px 16px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;';
+    body.textContent = content;
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+            overlay.remove();
+        }
+    });
+    document.body.appendChild(overlay);
 }

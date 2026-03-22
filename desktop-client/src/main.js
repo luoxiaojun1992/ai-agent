@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Keep a global reference of the window object to prevent garbage collection
 let mainWindow;
@@ -27,6 +28,8 @@ const defaultScheduledTasks = {
 // Scheduled tasks storage
 let scheduledTasks = { tasks: [] };
 let taskSchedulers = new Map();
+let pendingTaskPreparations = new Map();
+const TASK_PREPARATION_TIMEOUT_MS = 5000;
 
 // Load configuration
 function loadConfig() {
@@ -76,6 +79,179 @@ function saveScheduledTasks(tasksData) {
 }
 
 // Start a scheduled task
+async function clearAgentMemory(apiBase) {
+  const response = await fetch(`${apiBase}/agent/memory`, {
+    method: 'DELETE'
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to clear memory: HTTP ${response.status}`);
+  }
+}
+
+async function getAgentMemorySnapshot(apiBase) {
+  const response = await fetch(`${apiBase}/agent/memory`);
+  if (!response.ok) {
+    throw new Error(`Failed to get memory snapshot: HTTP ${response.status}`);
+  }
+  const data = await response.json();
+  return Array.isArray(data.contexts) ? data.contexts : [];
+}
+
+function writeTaskExecutionHistory(history) {
+  fs.writeFileSync(taskHistoryPath, JSON.stringify(history, null, 2));
+}
+
+function deleteTaskExecutionHistoryByTaskId(taskId) {
+  try {
+    const history = getTaskHistory();
+    const filtered = history.filter(item => item.taskId !== taskId);
+    if (filtered.length !== history.length) {
+      writeTaskExecutionHistory(filtered);
+    }
+  } catch (error) {
+    console.error('Error deleting task execution history:', error);
+  }
+}
+
+function deleteTaskHistoryEntry(historyId) {
+  try {
+    let history = getTaskHistory();
+    const nextHistory = history.filter(item => item.id !== historyId);
+    if (nextHistory.length === history.length) {
+      return { success: false, error: 'History entry not found' };
+    }
+    writeTaskExecutionHistory(nextHistory);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function prepareScheduledTaskExecution(task, options = {}) {
+  const { forceReset = false } = options;
+  const config = loadConfig();
+  const apiBase = config.apiBase || 'http://localhost:3001/api';
+
+  if (forceReset) {
+    await clearAgentMemory(apiBase);
+    return;
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const requestId = `${task.id}-${Date.now()}`;
+    const decision = await new Promise((resolve) => {
+      pendingTaskPreparations.set(requestId, resolve);
+      mainWindow.webContents.send('scheduled-task-before-execute', {
+        requestId,
+        taskId: task.id,
+        taskName: task.name
+      });
+      setTimeout(() => {
+        if (pendingTaskPreparations.has(requestId)) {
+          pendingTaskPreparations.delete(requestId);
+          resolve({ confirmed: false, resetRequired: false });
+        }
+      }, TASK_PREPARATION_TIMEOUT_MS);
+    });
+    pendingTaskPreparations.delete(requestId);
+
+    if (!decision || !decision.confirmed) {
+      throw new Error(`Task ${task.name} (${task.id}) execution cancelled by user`);
+    }
+
+    if (decision.resetRequired) {
+      await clearAgentMemory(apiBase);
+    }
+    return;
+  }
+
+  await clearAgentMemory(apiBase);
+}
+
+async function executeScheduledTask(task, options = {}) {
+  const config = loadConfig();
+  const apiBase = config.apiBase || 'http://localhost:3001/api';
+  const startedAt = new Date().toISOString();
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('scheduled-task-run-state', {
+      taskId: task.id,
+      running: true
+    });
+  }
+
+  try {
+    await prepareScheduledTaskExecution(task, options);
+
+    const response = await fetch(`${apiBase}/agent/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        message: task.message,
+        stream: false
+      })
+    });
+
+    let result = '';
+    let isError = false;
+    if (response.ok) {
+      const data = await response.json();
+      result = data.response || 'Task executed successfully';
+    } else {
+      result = `Error: HTTP ${response.status}`;
+      isError = true;
+    }
+
+    const taskMemoryContexts = await getAgentMemorySnapshot(apiBase);
+    const saved = saveTaskExecutionHistory(task.id, {
+      taskName: task.name,
+      result,
+      isError,
+      contexts: taskMemoryContexts,
+      startedAt
+    });
+    if (saved) {
+      await clearAgentMemory(apiBase);
+    } else {
+      console.error(`Task ${task.id} history save failed; keeping memory for manual recovery`);
+    }
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('scheduled-task-executed', {
+        taskId: task.id,
+        taskName: task.name,
+        result,
+        timestamp: new Date().toISOString(),
+        isError
+      });
+    }
+
+    return { success: !isError, result, error: isError ? result : undefined };
+  } catch (error) {
+    console.error(`Error executing task ${task.id}:`, error);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('scheduled-task-executed', {
+        taskId: task.id,
+        taskName: task.name,
+        result: 'Error: ' + error.message,
+        timestamp: new Date().toISOString(),
+        isError: true
+      });
+    }
+    return { success: false, error: error.message };
+  } finally {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('scheduled-task-run-state', {
+        taskId: task.id,
+        running: false
+      });
+    }
+  }
+}
+
+// Start a scheduled task
 function startScheduledTask(task) {
   if (taskSchedulers.has(task.id)) {
     // Already running
@@ -86,9 +262,6 @@ function startScheduledTask(task) {
     console.log(`Task ${task.id} is disabled, not starting`);
     return;
   }
-
-  const config = loadConfig();
-  const apiBase = config.apiBase || 'http://localhost:3001/api';
 
   let intervalMs;
 
@@ -112,51 +285,7 @@ function startScheduledTask(task) {
 
   const executeTask = async () => {
     console.log(`Executing scheduled task: ${task.name}`);
-    try {
-      const response = await fetch(`${apiBase}/agent/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: task.message,
-          stream: false
-        })
-      });
-
-      let result = '';
-      if (response.ok) {
-        const data = await response.json();
-        result = data.response || 'Task executed successfully';
-      } else {
-        result = `Error: HTTP ${response.status}`;
-      }
-
-      // Notify renderer process
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('scheduled-task-executed', {
-          taskId: task.id,
-          taskName: task.name,
-          result: result,
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      // Save task execution history
-      saveTaskExecutionHistory(task.id, result);
-
-    } catch (error) {
-      console.error(`Error executing task ${task.id}:`, error);
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('scheduled-task-executed', {
-          taskId: task.id,
-          taskName: task.name,
-          result: 'Error: ' + error.message,
-          timestamp: new Date().toISOString(),
-          isError: true
-        });
-      }
-    }
+    await executeScheduledTask(task);
   };
 
   // Start the interval
@@ -203,9 +332,17 @@ function saveTaskExecutionHistory(taskId, result) {
       history = JSON.parse(data);
     }
 
+    const resultPayload = typeof result === 'object' && result !== null ? result : {
+      result
+    };
     history.unshift({
+      id: crypto.randomUUID(),
       taskId,
-      result,
+      taskName: resultPayload.taskName,
+      result: resultPayload.result || '',
+      isError: !!resultPayload.isError,
+      contexts: Array.isArray(resultPayload.contexts) ? resultPayload.contexts : [],
+      startedAt: resultPayload.startedAt,
       timestamp: new Date().toISOString()
     });
 
@@ -214,9 +351,11 @@ function saveTaskExecutionHistory(taskId, result) {
       history = history.slice(0, 100);
     }
 
-    fs.writeFileSync(taskHistoryPath, JSON.stringify(history, null, 2));
+    writeTaskExecutionHistory(history);
+    return true;
   } catch (error) {
     console.error('Error saving task execution history:', error);
+    return false;
   }
 }
 
@@ -505,6 +644,7 @@ ipcMain.handle('delete-scheduled-task', (event, taskId) => {
   const tasksData = loadScheduledTasks();
   tasksData.tasks = tasksData.tasks.filter(t => t.id !== taskId);
   saveScheduledTasks(tasksData);
+  deleteTaskExecutionHistoryByTaskId(taskId);
 
   return { success: true };
 });
@@ -535,6 +675,25 @@ ipcMain.handle('get-task-history', () => {
   return getTaskHistory();
 });
 
+ipcMain.handle('delete-task-history-entry', (event, historyId) => {
+  return deleteTaskHistoryEntry(historyId);
+});
+
+ipcMain.handle('resolve-scheduled-task-preparation', (event, payload) => {
+  if (!payload || !payload.requestId) {
+    return { success: false, error: 'Missing requestId' };
+  }
+  const resolver = pendingTaskPreparations.get(payload.requestId);
+  if (!resolver) {
+    return { success: false, error: 'Request not found' };
+  }
+  resolver({
+    confirmed: !!payload.confirmed,
+    resetRequired: !!payload.resetRequired
+  });
+  return { success: true };
+});
+
 // Manually execute a scheduled task
 ipcMain.handle('execute-scheduled-task', async (event, taskId) => {
   const tasksData = loadScheduledTasks();
@@ -544,43 +703,7 @@ ipcMain.handle('execute-scheduled-task', async (event, taskId) => {
     return { success: false, error: 'Task not found' };
   }
 
-  const config = loadConfig();
-  const apiBase = config.apiBase || 'http://localhost:3001/api';
-
-  try {
-    const response = await fetch(`${apiBase}/agent/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message: task.message,
-        stream: false
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const result = data.response || 'Task executed successfully';
-
-      // Notify renderer
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('scheduled-task-executed', {
-          taskId: task.id,
-          taskName: task.name,
-          result: result,
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      saveTaskExecutionHistory(task.id, result);
-      return { success: true, result };
-    } else {
-      return { success: false, error: `HTTP ${response.status}` };
-    }
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+  return executeScheduledTask(task);
 });
 
 // Application lifecycle
