@@ -29,6 +29,7 @@ const defaultScheduledTasks = {
 let scheduledTasks = { tasks: [] };
 let taskSchedulers = new Map();
 let pendingTaskPreparations = new Map();
+let scheduledTaskExecutionQueue = Promise.resolve();
 const TASK_PREPARATION_TIMEOUT_MS = 5000;
 
 // Load configuration
@@ -251,6 +252,12 @@ async function executeScheduledTask(task, options = {}) {
   }
 }
 
+function enqueueScheduledTaskExecution(task, options = {}) {
+  const executePromise = scheduledTaskExecutionQueue.then(() => executeScheduledTask(task, options));
+  scheduledTaskExecutionQueue = executePromise.catch(() => {});
+  return executePromise;
+}
+
 // Start a scheduled task
 function startScheduledTask(task) {
   if (taskSchedulers.has(task.id)) {
@@ -285,7 +292,7 @@ function startScheduledTask(task) {
 
   const executeTask = async () => {
     console.log(`Executing scheduled task: ${task.name}`);
-    await executeScheduledTask(task);
+    await enqueueScheduledTaskExecution(task);
   };
 
   // Start the interval
@@ -703,7 +710,7 @@ ipcMain.handle('execute-scheduled-task', async (event, taskId) => {
     return { success: false, error: 'Task not found' };
   }
 
-  return executeScheduledTask(task);
+  return enqueueScheduledTaskExecution(task);
 });
 
 // Application lifecycle
