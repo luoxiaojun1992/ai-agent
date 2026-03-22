@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { createTaskExecutionQueue } = require('./task-execution-queue');
 
 // Keep a global reference of the window object to prevent garbage collection
 let mainWindow;
@@ -29,6 +30,7 @@ const defaultScheduledTasks = {
 let scheduledTasks = { tasks: [] };
 let taskSchedulers = new Map();
 let pendingTaskPreparations = new Map();
+const enqueueScheduledTaskExecution = createTaskExecutionQueue(console);
 const TASK_PREPARATION_TIMEOUT_MS = 5000;
 
 // Load configuration
@@ -285,7 +287,7 @@ function startScheduledTask(task) {
 
   const executeTask = async () => {
     console.log(`Executing scheduled task: ${task.name}`);
-    await executeScheduledTask(task);
+    await enqueueScheduledTaskExecution(() => executeScheduledTask(task));
   };
 
   // Start the interval
@@ -703,7 +705,7 @@ ipcMain.handle('execute-scheduled-task', async (event, taskId) => {
     return { success: false, error: 'Task not found' };
   }
 
-  return executeScheduledTask(task);
+  return enqueueScheduledTaskExecution(() => executeScheduledTask(task));
 });
 
 // Application lifecycle
