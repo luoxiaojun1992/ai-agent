@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	httpPKG "github.com/luoxiaojun1992/ai-agent/pkg/http"
@@ -358,6 +359,7 @@ type AgentDouble struct {
 	personalInfo *personalInfo
 	skillSet     map[string]skill.Skill
 	memory       *Memory
+	memoryMu     sync.RWMutex
 	checkpoint   Checkpoint
 }
 
@@ -451,6 +453,9 @@ func (ad *AgentDouble) Command(ctx context.Context, skillName string, cmdCtx any
 }
 
 func (ad *AgentDouble) AddMemory(role, content string, images []string) *AgentDouble {
+	ad.memoryMu.Lock()
+	defer ad.memoryMu.Unlock()
+
 	ad.memory.Contexts = append(ad.memory.Contexts, &MemoryCtx{
 		Role:    role,
 		Content: content,
@@ -498,8 +503,9 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 	for {
 		ad.compressContextByTokenBudget()
 
-		ollamaMessages := make([]*ollama.Message, 0, len(ad.memory.Contexts))
-		for _, memCtx := range ad.memory.Contexts {
+		memorySnapshot := ad.MemorySnapshot()
+		ollamaMessages := make([]*ollama.Message, 0, len(memorySnapshot.Contexts))
+		for _, memCtx := range memorySnapshot.Contexts {
 			ollamaMessages = append(ollamaMessages, memCtx.toOllamaMessage())
 		}
 
@@ -586,20 +592,21 @@ func (ad *AgentDouble) talkToOllamaWithMemory(ctx context.Context, callback func
 }
 
 func (ad *AgentDouble) compressContextByTokenBudget() {
-	if ad.config == nil || ad.config.ChatModelContextLimit <= 0 || len(ad.memory.Contexts) <= 1 {
+	memorySnapshot := ad.MemorySnapshot()
+	if ad.config == nil || ad.config.ChatModelContextLimit <= 0 || len(memorySnapshot.Contexts) <= 1 {
 		return
 	}
 
-	messages := make([]contextcompress.Message, 0, len(ad.memory.Contexts))
+	messages := make([]contextcompress.Message, 0, len(memorySnapshot.Contexts))
 	lastUserIdx := -1
-	for i := len(ad.memory.Contexts) - 1; i >= 0; i-- {
-		if ad.memory.Contexts[i].Role == "user" {
+	for i := len(memorySnapshot.Contexts) - 1; i >= 0; i-- {
+		if memorySnapshot.Contexts[i].Role == "user" {
 			lastUserIdx = i
 			break
 		}
 	}
 
-	for i, memCtx := range ad.memory.Contexts {
+	for i, memCtx := range memorySnapshot.Contexts {
 		messages = append(messages, contextcompress.Message{
 			Role:      memCtx.Role,
 			Content:   memCtx.Content,
@@ -634,7 +641,9 @@ func (ad *AgentDouble) compressContextByTokenBudget() {
 		})
 	}
 
+	ad.memoryMu.Lock()
 	ad.memory.Contexts = newMemory
+	ad.memoryMu.Unlock()
 }
 
 func (ad *AgentDouble) ListenAndWatch(ctx context.Context, message string, images []string, callback func(response string) error) error {
@@ -712,6 +721,9 @@ func (ad *AgentDouble) Recall(ctx context.Context, prompt string) ([]string, err
 }
 
 func (ad *AgentDouble) Forget(number int) *AgentDouble {
+	ad.memoryMu.Lock()
+	defer ad.memoryMu.Unlock()
+
 	memoryLen := len(ad.memory.Contexts)
 	if number < 0 {
 		number = memoryLen
@@ -736,6 +748,9 @@ func (ad *AgentDouble) ResetMemory() *AgentDouble {
 }
 
 func (ad *AgentDouble) MemorySnapshot() *Memory {
+	ad.memoryMu.RLock()
+	defer ad.memoryMu.RUnlock()
+
 	memorySnapshot := &Memory{}
 	for _, memoryCtx := range ad.memory.Contexts {
 		memorySnapshot.Contexts = append(memorySnapshot.Contexts, &MemoryCtx{
@@ -756,6 +771,8 @@ func (ad *AgentDouble) LoadMemory(snapshot *Memory) *AgentDouble {
 			Images:  append(make([]string, 0, len(memoryCtx.Images)), memoryCtx.Images...),
 		})
 	}
+	ad.memoryMu.Lock()
 	ad.memory = newMemory
+	ad.memoryMu.Unlock()
 	return ad
 }
