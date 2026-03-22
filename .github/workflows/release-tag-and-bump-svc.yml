@@ -119,11 +119,14 @@ jobs:
           git commit -m "chore: bump ai-agent to ${next_tag}"
           git push origin "$branch_name"
 
-          # Create a pull request using GitHub CLI
-          gh pr create \
+          # Create a pull request using GitHub CLI.
+          # Some repositories disallow GitHub Actions from creating PRs; don't fail tagging in that case.
+          if ! gh pr create \
             --title "chore: bump ai-agent to ${next_tag}" \
             --body "Update ai-agent dependency to ${next_tag}" \
             --base "${{ github.event.workflow_run.head_branch }}" \
-            --head "$branch_name"
+            --head "$branch_name"; then
+            echo "::warning::Unable to create PR automatically. Branch '$branch_name' was pushed; please create PR manually."
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
