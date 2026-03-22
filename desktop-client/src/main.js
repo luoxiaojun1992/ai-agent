@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Keep a global reference of the window object to prevent garbage collection
 let mainWindow;
@@ -28,6 +29,7 @@ const defaultScheduledTasks = {
 let scheduledTasks = { tasks: [] };
 let taskSchedulers = new Map();
 let pendingTaskPreparations = new Map();
+const TASK_PREPARATION_TIMEOUT_MS = 5000;
 
 // Load configuration
 function loadConfig() {
@@ -99,7 +101,7 @@ function writeTaskExecutionHistory(history) {
   fs.writeFileSync(taskHistoryPath, JSON.stringify(history, null, 2));
 }
 
-function deleteTaskExecutionHistory(taskId) {
+function deleteTaskExecutionHistoryByTaskId(taskId) {
   try {
     const history = getTaskHistory();
     const filtered = history.filter(item => item.taskId !== taskId);
@@ -147,14 +149,14 @@ async function prepareScheduledTaskExecution(task, options = {}) {
       setTimeout(() => {
         if (pendingTaskPreparations.has(requestId)) {
           pendingTaskPreparations.delete(requestId);
-          resolve({ confirmed: true, resetRequired: true });
+          resolve({ confirmed: false, resetRequired: false });
         }
-      }, 5000);
+      }, TASK_PREPARATION_TIMEOUT_MS);
     });
     pendingTaskPreparations.delete(requestId);
 
     if (!decision || !decision.confirmed) {
-      throw new Error('Task execution cancelled by user');
+      throw new Error(`Task ${task.name} (${task.id}) execution cancelled by user`);
     }
 
     if (decision.resetRequired) {
@@ -212,6 +214,8 @@ async function executeScheduledTask(task, options = {}) {
     });
     if (saved) {
       await clearAgentMemory(apiBase);
+    } else {
+      console.error(`Task ${task.id} history save failed; keeping memory for manual recovery`);
     }
 
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -332,7 +336,7 @@ function saveTaskExecutionHistory(taskId, result) {
       result
     };
     history.unshift({
-      id: Date.now().toString() + '-' + Math.random().toString(36).slice(2, 8),
+      id: crypto.randomUUID(),
       taskId,
       taskName: resultPayload.taskName,
       result: resultPayload.result || '',
@@ -640,7 +644,7 @@ ipcMain.handle('delete-scheduled-task', (event, taskId) => {
   const tasksData = loadScheduledTasks();
   tasksData.tasks = tasksData.tasks.filter(t => t.id !== taskId);
   saveScheduledTasks(tasksData);
-  deleteTaskExecutionHistory(taskId);
+  deleteTaskExecutionHistoryByTaskId(taskId);
 
   return { success: true };
 });

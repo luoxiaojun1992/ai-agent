@@ -6,7 +6,7 @@ let isLoading = false;
 let currentStreamController = null;
 let messageHistory = [];
 const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
-let scheduledTaskRunningCount = 0;
+const runningScheduledTaskIds = new Set();
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
@@ -62,6 +62,19 @@ function setupEventListeners() {
         radio.addEventListener('change', function() {
             updateStreamIndicator(this.value === 'streaming');
         });
+    });
+
+    document.addEventListener('click', async function(event) {
+        const viewBtn = event.target.closest('[data-history-action="view-memory"]');
+        if (viewBtn) {
+            await viewTaskHistoryMemory(viewBtn.dataset.historyId || '');
+            return;
+        }
+
+        const deleteBtn = event.target.closest('[data-history-action="delete-memory"]');
+        if (deleteBtn) {
+            await deleteTaskHistoryEntry(deleteBtn.dataset.historyId || '');
+        }
     });
 }
 
@@ -376,7 +389,7 @@ function updateUIState() {
     const sendBtn = document.getElementById('sendBtn');
     const plannerBtn = document.getElementById('plannerBtn');
     const input = document.getElementById('messageInput');
-    const isTaskRunning = scheduledTaskRunningCount > 0;
+    const isTaskRunning = runningScheduledTaskIds.size > 0;
     
     if (isLoading || isTaskRunning) {
         sendBtn.disabled = true;
@@ -920,7 +933,8 @@ async function handleScheduledTaskPreparation(data) {
         return;
     }
 
-    const confirmed = confirm(`检测到当前聊天有历史记录或未发送内容。是否清空聊天并启动定时任务「${data.taskName || ''}」？`);
+    const taskName = sanitizeDialogText(data.taskName || '');
+    const confirmed = confirm(`检测到当前聊天有历史记录或未发送内容。是否清空聊天并启动定时任务「${taskName}」？`);
     if (confirmed) {
         clearChat();
         const input = document.getElementById('messageInput');
@@ -937,16 +951,20 @@ async function handleScheduledTaskPreparation(data) {
 }
 
 function handleScheduledTaskRunState(data) {
-    if (!data || typeof data.running !== 'boolean') {
+    if (!data || typeof data.running !== 'boolean' || !data.taskId) {
         return;
     }
 
     if (data.running) {
-        scheduledTaskRunningCount += 1;
+        runningScheduledTaskIds.add(data.taskId);
     } else {
-        scheduledTaskRunningCount = Math.max(0, scheduledTaskRunningCount - 1);
+        runningScheduledTaskIds.delete(data.taskId);
     }
     updateUIState();
+}
+
+function sanitizeDialogText(text) {
+    return String(text).replace(/[\u0000-\u001F\u007F]/g, '').slice(0, 120);
 }
 
 // Delete scheduled task
@@ -989,19 +1007,48 @@ function renderTaskHistory(history) {
         return;
     }
 
-    container.innerHTML = history.slice(0, 10).map(item => `
-        <div class="history-item ${item.isError ? 'error' : ''}">
-            <div class="history-item-header">
-                <span>${escapeHtml(item.taskName || item.taskId || '')}</span>
-                <span>${formatDate(item.timestamp)}</span>
-            </div>
-            <div class="history-item-result">${escapeHtml(item.result || '')}</div>
-            <div class="task-item-actions" style="margin-top: 6px;">
-                <button class="task-action-btn run" onclick="viewTaskHistoryMemory('${item.id}')">View Memory</button>
-                <button class="task-action-btn delete" onclick="deleteTaskHistoryEntry('${item.id}')">Delete Record</button>
-            </div>
-        </div>
-    `).join('');
+    container.innerHTML = '';
+    history.slice(0, 10).forEach(item => {
+        const historyItem = document.createElement('div');
+        historyItem.className = `history-item ${item.isError ? 'error' : ''}`;
+
+        const header = document.createElement('div');
+        header.className = 'history-item-header';
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = item.taskName || item.taskId || '';
+        const timeSpan = document.createElement('span');
+        timeSpan.textContent = formatDate(item.timestamp);
+        header.appendChild(nameSpan);
+        header.appendChild(timeSpan);
+
+        const resultDiv = document.createElement('div');
+        resultDiv.className = 'history-item-result';
+        resultDiv.textContent = item.result || '';
+
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'task-item-actions';
+        actionsDiv.style.marginTop = '6px';
+
+        const viewBtn = document.createElement('button');
+        viewBtn.className = 'task-action-btn run';
+        viewBtn.textContent = 'View Memory';
+        viewBtn.setAttribute('data-history-action', 'view-memory');
+        viewBtn.setAttribute('data-history-id', item.id || '');
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'task-action-btn delete';
+        deleteBtn.textContent = 'Delete Record';
+        deleteBtn.setAttribute('data-history-action', 'delete-memory');
+        deleteBtn.setAttribute('data-history-id', item.id || '');
+
+        actionsDiv.appendChild(viewBtn);
+        actionsDiv.appendChild(deleteBtn);
+
+        historyItem.appendChild(header);
+        historyItem.appendChild(resultDiv);
+        historyItem.appendChild(actionsDiv);
+        container.appendChild(historyItem);
+    });
 }
 
 // Format date
@@ -1036,7 +1083,7 @@ async function viewTaskHistoryMemory(historyId) {
             showNotification('History record not found', 'error');
             return;
         }
-        alert(formatTaskMemory(item.contexts));
+        showTaskMemoryModal(item.taskName || item.taskId || 'Task Memory', formatTaskMemory(item.contexts));
     } catch (error) {
         showNotification('Error: ' + error.message, 'error');
     }
@@ -1058,4 +1105,37 @@ async function deleteTaskHistoryEntry(historyId) {
     } catch (error) {
         showNotification('Error: ' + error.message, 'error');
     }
+}
+
+function showTaskMemoryModal(title, content) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:11000;display:flex;align-items:center;justify-content:center;padding:20px;';
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'width:min(900px,95vw);max-height:85vh;background:#fff;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'padding:12px 16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;';
+    const headerTitle = document.createElement('strong');
+    headerTitle.textContent = title;
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.className = 'task-action-btn delete';
+    closeBtn.onclick = () => overlay.remove();
+    header.appendChild(headerTitle);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('pre');
+    body.style.cssText = 'margin:0;padding:14px 16px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.5;';
+    body.textContent = content;
+
+    modal.appendChild(header);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+            overlay.remove();
+        }
+    });
+    document.body.appendChild(overlay);
 }
