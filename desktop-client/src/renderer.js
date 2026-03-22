@@ -5,6 +5,7 @@ const API_BASE = 'http://localhost:3001/api';
 let isLoading = false;
 let currentStreamController = null;
 let messageHistory = [];
+const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
@@ -19,6 +20,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Setup Electron menu event listeners
     setupElectronListeners();
+
+    // Load persisted memory into chat history
+    await refreshMemory(false);
 
     // Initialize scheduled tasks (Electron only)
     if (window.electronAPI) {
@@ -119,6 +123,15 @@ function updateStatus(connected, text) {
     dot.className = 'status-dot' + (connected ? ' connected' : ' error');
     statusText.textContent = text;
     apiStatus.textContent = 'API: ' + text;
+}
+
+function parseMarkdown(content) {
+    if (window.marked && typeof window.marked.parse === 'function') {
+        return window.marked.parse(content);
+    }
+    const div = document.createElement('div');
+    div.textContent = content;
+    return div.innerHTML.replace(/\n/g, '<br>');
 }
 
 // Send message
@@ -286,7 +299,7 @@ function addMessage(content, sender, isError = false) {
     if (isError) {
         contentDiv.innerHTML = `<span style="color: #dc3545;">${content}</span>`;
     } else {
-        contentDiv.innerHTML = marked.parse(content);
+        contentDiv.innerHTML = parseMarkdown(content);
     }
     
     bubbleDiv.appendChild(contentDiv);
@@ -336,7 +349,7 @@ function addStreamingMessage() {
 
 // Update streaming message
 function updateStreamingMessage(messageElement, content) {
-    messageElement.contentDiv.innerHTML = marked.parse(content) + '<span class="cursor">▋</span>';
+    messageElement.contentDiv.innerHTML = parseMarkdown(content) + '<span class="cursor">▋</span>';
     
     const chatMessages = document.getElementById('chatMessages');
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -347,7 +360,7 @@ function finalizeStreamingMessage(messageElement, content, error = null) {
     if (error) {
         messageElement.contentDiv.innerHTML = `<span style="color: #dc3545;">${error}</span>`;
     } else if (content !== null) {
-        messageElement.contentDiv.innerHTML = marked.parse(content);
+        messageElement.contentDiv.innerHTML = parseMarkdown(content);
     }
     
     // Remove streaming indicator
@@ -468,6 +481,7 @@ async function clearMemory() {
         
         if (response.ok) {
             showNotification('Memory cleared', 'success');
+            await refreshMemory(false);
         } else {
             showNotification('Failed to clear memory', 'error');
         }
@@ -477,11 +491,56 @@ async function clearMemory() {
 }
 
 // Refresh memory
-async function refreshMemory() {
+function normalizeChatContexts(contexts) {
+    if (!Array.isArray(contexts)) {
+        return [];
+    }
+    return contexts
+        .filter(ctx => ctx && typeof ctx.content === 'string' && typeof ctx.role === 'string' && CHAT_MEMORY_ROLES.has(ctx.role))
+        .map(ctx => ({
+            role: ctx.role,
+            content: ctx.content
+        }));
+}
+
+function toSender(role) {
+    return role === 'user' ? 'user' : 'agent';
+}
+
+function renderChatFromMemory(contexts) {
+    const chatMessages = document.getElementById('chatMessages');
+    if (contexts.length === 0) {
+        chatMessages.innerHTML = `
+            <div class="welcome-message">
+                <h2>👋 Welcome to AI Agent Desktop</h2>
+                <p>This is a powerful AI Agent desktop client. You can chat with AI, use various skills, or let Agent Planner help you plan and execute tasks.</p>
+            </div>
+        `;
+        messageHistory = [];
+        return;
+    }
+
+    chatMessages.innerHTML = '';
+    messageHistory = contexts.map(ctx => ({
+        role: toSender(ctx.role),
+        content: ctx.content
+    }));
+    contexts.forEach(ctx => {
+        const sender = toSender(ctx.role);
+        addMessage(ctx.content, sender);
+    });
+}
+
+async function refreshMemory(showSuccess = true) {
     try {
         const response = await fetch(`${API_BASE}/agent/memory`);
         if (response.ok) {
-            showNotification('Memory refreshed', 'success');
+            const data = await response.json();
+            const chatContexts = normalizeChatContexts(data.contexts);
+            renderChatFromMemory(chatContexts);
+            if (showSuccess) {
+                showNotification(`Memory refreshed (${chatContexts.length})`, 'success');
+            }
         } else {
             showNotification('Failed to refresh memory', 'error');
         }

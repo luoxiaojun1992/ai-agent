@@ -260,11 +260,13 @@
         const API_BASE = 'http://localhost:3001/api';
         let isLoading = false;
         let currentStreamController = null;
+        const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
         
         // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             checkStatus();
             refreshConfig();
+            await refreshMemory(false);
             
             // Handle Enter key
             document.getElementById('messageInput').addEventListener('keypress', function(e) {
@@ -304,6 +306,15 @@
             const statusDiv = document.getElementById('status');
             statusDiv.className = `status ${type}`;
             statusDiv.innerHTML = `<span>${message}</span>`;
+        }
+
+        function parseMarkdown(content) {
+            if (window.marked && typeof window.marked.parse === 'function') {
+                return window.marked.parse(content);
+            }
+            const div = document.createElement('div');
+            div.textContent = content;
+            return div.innerHTML.replace(/\n/g, '<br>');
         }
         
         async function sendMessage() {
@@ -439,7 +450,7 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.innerHTML = marked.parse(message);
+            contentDiv.innerHTML = parseMarkdown(message);
             
             messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
@@ -478,11 +489,11 @@
         
         function finalizeStreamingMessage(messageElement, finalContent = null) {
             if (finalContent !== null) {
-                messageElement.contentDiv.innerHTML = marked.parse(finalContent);
+                messageElement.contentDiv.innerHTML = parseMarkdown(finalContent);
             } else {
                 // Remove cursor indicator
                 const currentText = messageElement.contentDiv.textContent;
-                messageElement.contentDiv.innerHTML = marked.parse(currentText.replace('▋', ''));
+                messageElement.contentDiv.innerHTML = parseMarkdown(currentText.replace('▋', ''));
             }
             
             // Remove streaming class
@@ -541,6 +552,35 @@
             }
         }
         
+        function normalizeChatContexts(contexts) {
+            if (!Array.isArray(contexts)) {
+                return [];
+            }
+            return contexts
+                .filter(ctx => ctx && typeof ctx.content === 'string' && typeof ctx.role === 'string' && CHAT_MEMORY_ROLES.has(ctx.role))
+                .map(ctx => ({
+                    role: ctx.role,
+                    content: ctx.content
+                }));
+        }
+
+        function renderChatFromMemory(contexts) {
+            const chatMessages = document.getElementById('chatMessages');
+            if (contexts.length === 0) {
+                chatMessages.innerHTML = `
+                    <div class="message agent">
+                        <div class="message-content">Hello! I'm your AI Agent. How can I help you today?</div>
+                    </div>
+                `;
+                return;
+            }
+
+            chatMessages.innerHTML = '';
+            contexts.forEach(ctx => {
+                addChatMessage(ctx.content, ctx.role === 'user' ? 'user' : 'agent');
+            });
+        }
+
         async function clearMemory() {
             try {
                 const response = await fetch(`${API_BASE}/agent/memory`, {
@@ -549,7 +589,7 @@
                 
                 if (response.ok) {
                     alert('Memory cleared successfully');
-                    refreshMemory();
+                    await refreshMemory(false);
                 } else {
                     alert('Failed to clear memory');
                 }
@@ -558,15 +598,29 @@
             }
         }
         
-        async function refreshMemory() {
+        async function refreshMemory(showSuccess = true) {
             try {
                 const response = await fetch(`${API_BASE}/agent/memory`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch memory');
+                }
                 const data = await response.json();
-                
+                const chatContexts = normalizeChatContexts(data.contexts);
+
+                renderChatFromMemory(chatContexts);
+
                 const memoryDisplay = document.getElementById('memoryDisplay');
-                memoryDisplay.innerHTML = '<p>Memory refreshed</p>';
+                if (showSuccess) {
+                    memoryDisplay.innerHTML = `<p>Memory refreshed: loaded ${chatContexts.length} chat records.</p>`;
+                } else {
+                    memoryDisplay.innerHTML = `<p>Loaded ${chatContexts.length} chat records from memory.</p>`;
+                }
             } catch (error) {
-                document.getElementById('memoryDisplay').innerHTML = '<p>Error loading memory</p>';
+                console.error('Error loading memory:', error);
+                if (showSuccess) {
+                    alert('Error loading memory: ' + error.message);
+                }
+                document.getElementById('memoryDisplay').innerHTML = '<p>Error loading memory. Chat history may be unavailable.</p>';
             }
         }
         
