@@ -260,6 +260,7 @@
         const API_BASE = 'http://localhost:3001/api';
         let isLoading = false;
         let currentStreamController = null;
+        const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
         
         // Initialize
         document.addEventListener('DOMContentLoaded', async function() {
@@ -556,7 +557,7 @@
                 return [];
             }
             return contexts
-                .filter(ctx => ctx && typeof ctx.content === 'string' && (ctx.role === 'user' || ctx.role === 'assistant'))
+                .filter(ctx => ctx && typeof ctx.content === 'string' && typeof ctx.role === 'string' && CHAT_MEMORY_ROLES.has(ctx.role))
                 .map(ctx => ({
                     role: ctx.role,
                     content: ctx.content
@@ -615,7 +616,11 @@
                     memoryDisplay.innerHTML = `<p>Loaded ${chatContexts.length} chat records from memory.</p>`;
                 }
             } catch (error) {
-                document.getElementById('memoryDisplay').innerHTML = '<p>Error loading memory</p>';
+                console.error('Error loading memory:', error);
+                if (showSuccess) {
+                    alert('Error loading memory: ' + error.message);
+                }
+                document.getElementById('memoryDisplay').innerHTML = '<p>Error loading memory. Chat history may be unavailable.</p>';
             }
         }
         

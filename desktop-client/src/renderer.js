@@ -5,6 +5,7 @@ const API_BASE = 'http://localhost:3001/api';
 let isLoading = false;
 let currentStreamController = null;
 let messageHistory = [];
+const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
@@ -495,11 +496,15 @@ function normalizeChatContexts(contexts) {
         return [];
     }
     return contexts
-        .filter(ctx => ctx && typeof ctx.content === 'string' && (ctx.role === 'user' || ctx.role === 'assistant'))
+        .filter(ctx => ctx && typeof ctx.content === 'string' && typeof ctx.role === 'string' && CHAT_MEMORY_ROLES.has(ctx.role))
         .map(ctx => ({
             role: ctx.role,
             content: ctx.content
         }));
+}
+
+function toSender(role) {
+    return role === 'user' ? 'user' : 'agent';
 }
 
 function renderChatFromMemory(contexts) {
@@ -516,14 +521,13 @@ function renderChatFromMemory(contexts) {
     }
 
     chatMessages.innerHTML = '';
-    messageHistory = [];
+    messageHistory = contexts.map(ctx => ({
+        role: toSender(ctx.role),
+        content: ctx.content
+    }));
     contexts.forEach(ctx => {
-        const sender = ctx.role === 'user' ? 'user' : 'agent';
+        const sender = toSender(ctx.role);
         addMessage(ctx.content, sender);
-        messageHistory.push({
-            role: sender,
-            content: ctx.content
-        });
     });
 }
 
