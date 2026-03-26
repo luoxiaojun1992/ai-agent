@@ -215,6 +215,13 @@ async function executeScheduledTask(task, options = {}) {
         }
       };
 
+      const buildErrorResult = (errorMessage) => {
+        if (result) {
+          return `${result}\n\nError: ${errorMessage}`;
+        }
+        return `Error: ${errorMessage}`;
+      };
+
       const processParsedEvents = (events) => {
         for (const evt of events) {
           if (!isError && evt.eventType === 'message' && evt.data && evt.data.content) {
@@ -222,9 +229,15 @@ async function executeScheduledTask(task, options = {}) {
             hasContent = true;
           } else if (evt.eventType === 'error') {
             isError = true;
-            result = `Error: ${evt.data && evt.data.error ? evt.data.error : 'Unknown error'}`;
+            result = buildErrorResult(evt.data && evt.data.error ? evt.data.error : 'Unknown error');
           }
         }
+      };
+
+      const parseAndProcessChunk = (content) => {
+        const parsed = parseSSEEvents(content, parseOptions);
+        chunkBuffer = parsed.remainder;
+        processParsedEvents(parsed.events);
       };
 
       while (!streamClosed) {
@@ -235,14 +248,11 @@ async function executeScheduledTask(task, options = {}) {
         }
 
         chunkBuffer += decoder.decode(value, { stream: true });
-        const parsed = parseSSEEvents(chunkBuffer, parseOptions);
-        chunkBuffer = parsed.remainder;
-        processParsedEvents(parsed.events);
+        parseAndProcessChunk(chunkBuffer);
       }
 
       if (chunkBuffer) {
-        const parsed = parseSSEEvents(`${chunkBuffer}\n\n`, parseOptions);
-        processParsedEvents(parsed.events);
+        parseAndProcessChunk(`${chunkBuffer}\n\n`);
       }
 
       if (!isError && !hasContent) {

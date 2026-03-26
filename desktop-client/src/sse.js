@@ -1,3 +1,9 @@
+/**
+ * Parse Server-Sent Events text chunks into JSON events.
+ * @param {string} chunkBuffer Concatenated SSE text data separated by "\n\n".
+ * @param {{onParseError?: (error: Error) => void}} [options]
+ * @returns {{events: Array<{eventType: string, data: any}>, remainder: string}}
+ */
 function parseSSEEvents(chunkBuffer, options = {}) {
   const { onParseError } = options;
   const frames = chunkBuffer.split('\n\n');
