@@ -311,7 +311,8 @@ function addMessage(content, sender, isError = false) {
     contentDiv.className = 'message-content';
     
     if (isError) {
-        contentDiv.innerHTML = `<span style="color: #dc3545;">${content}</span>`;
+        contentDiv.style.color = '#dc3545';
+        contentDiv.textContent = String(content ?? '');
     } else {
         contentDiv.innerHTML = parseMarkdown(content);
     }
@@ -372,7 +373,8 @@ function updateStreamingMessage(messageElement, content) {
 // Finalize streaming message
 function finalizeStreamingMessage(messageElement, content, error = null) {
     if (error) {
-        messageElement.contentDiv.innerHTML = `<span style="color: #dc3545;">${error}</span>`;
+        messageElement.contentDiv.style.color = '#dc3545';
+        messageElement.contentDiv.textContent = String(error ?? '');
     } else if (content !== null) {
         messageElement.contentDiv.innerHTML = parseMarkdown(content);
     }

@@ -47,9 +47,10 @@ func (w *Writer) Do(_ context.Context, cmdCtx any, _ func(output any) (any, erro
 		return errors.New("error converting content from params")
 	}
 
-	// Security: Clean the path to prevent directory traversal
-	cleanPath := filepath.Clean(pathStr)
-	fullPath := filepath.Join(w.RootDir, cleanPath)
+	fullPath, err := resolvePath(w.RootDir, pathStr)
+	if err != nil {
+		return err
+	}
 
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(fullPath)

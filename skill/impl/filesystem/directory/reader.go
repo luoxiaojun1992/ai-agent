@@ -36,7 +36,12 @@ func (r *Reader) Do(_ context.Context, cmdCtx any, callback func(output any) (an
 		return errors.New("error converting path from params")
 	}
 
-	entries, err := os.ReadDir(pathStr)
+	fullPath, err := resolvePath(r.RootDir, pathStr)
+	if err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(fullPath)
 	if err != nil {
 		return err
 	}
