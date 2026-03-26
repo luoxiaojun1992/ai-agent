@@ -95,7 +95,7 @@ func (c *Client) SendRequest(method, path string, body any, queryParams url.Valu
 		return nil, err
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return nil, fmt.Errorf("URL scheme is required: must be http or https")
+		return nil, fmt.Errorf("unsupported URL scheme: must be http or https")
 	}
 	if strings.TrimSpace(u.Host) == "" {
 		return nil, fmt.Errorf("URL host cannot be empty")

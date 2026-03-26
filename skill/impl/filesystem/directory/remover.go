@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 )
 
 type Remover struct {
@@ -59,7 +60,7 @@ func validateRemovePath(pathStr string) error {
 	// Check if trying to delete system directories
 	systemDirs := []string{"/bin", "/etc", "/usr", "/var", "/sys", "/proc", "/dev"}
 	for _, sysDir := range systemDirs {
-		if pathStr == sysDir {
+		if pathStr == sysDir || strings.HasPrefix(pathStr, sysDir+string(os.PathSeparator)) {
 			return errors.New("cannot delete system directories")
 		}
 	}

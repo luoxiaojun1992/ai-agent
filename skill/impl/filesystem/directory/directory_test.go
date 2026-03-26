@@ -180,6 +180,11 @@ func TestValidateRemovePath_SystemDirPrefix(t *testing.T) {
 	if !strings.Contains(err.Error(), "system") {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
+	err = validateRemovePath("/dev/null")
+	if err == nil {
+		t.Fatalf("expected system directory prefix rejection error")
+	}
 }
 
 func TestResolvePath_RejectsTraversalOutsideRoot(t *testing.T) {
