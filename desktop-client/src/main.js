@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { createTaskExecutionQueue } = require('./task-execution-queue');
+const { parseSSEEvents } = require('./sse');
 
 // Keep a global reference of the window object to prevent garbage collection
 let mainWindow;
@@ -192,15 +193,61 @@ async function executeScheduledTask(task, options = {}) {
       },
       body: JSON.stringify({
         message: task.message,
-        stream: false
+        stream: true
       })
     });
 
     let result = '';
     let isError = false;
     if (response.ok) {
-      const data = await response.json();
-      result = data.response || 'Task executed successfully';
+      if (!response.body || typeof response.body.getReader !== 'function') {
+        throw new Error('Streaming response body is unavailable');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let chunkBuffer = '';
+      let hasContent = false;
+      let streamClosed = false;
+
+      while (!streamClosed) {
+        const { done, value } = await reader.read();
+        if (done) {
+          streamClosed = true;
+          break;
+        }
+
+        chunkBuffer += decoder.decode(value, { stream: true });
+        const parsed = parseSSEEvents(chunkBuffer);
+        chunkBuffer = parsed.remainder;
+
+        for (const evt of parsed.events) {
+          if (!isError && evt.eventType === 'message' && evt.data && evt.data.content) {
+            result += evt.data.content;
+            hasContent = true;
+          } else if (evt.eventType === 'error') {
+            isError = true;
+            result = `Error: ${evt.data && evt.data.error ? evt.data.error : 'Unknown error'}`;
+          }
+        }
+      }
+
+      if (chunkBuffer) {
+        const parsed = parseSSEEvents(`${chunkBuffer}\n\n`);
+        for (const evt of parsed.events) {
+          if (!isError && evt.eventType === 'message' && evt.data && evt.data.content) {
+            result += evt.data.content;
+            hasContent = true;
+          } else if (evt.eventType === 'error') {
+            isError = true;
+            result = `Error: ${evt.data && evt.data.error ? evt.data.error : 'Unknown error'}`;
+          }
+        }
+      }
+
+      if (!isError && !hasContent) {
+        result = 'Task executed successfully';
+      }
     } else {
       result = `Error: HTTP ${response.status}`;
       isError = true;
