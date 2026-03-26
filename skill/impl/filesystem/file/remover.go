@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -39,11 +38,16 @@ func (r *Remover) Do(_ context.Context, cmdCtx any, _ func(output any) (any, err
 		return errors.New("error converting path from params")
 	}
 
-	if err := validateRemovePath(pathStr); err != nil {
+	fullPath, err := resolvePath(r.RootDir, pathStr)
+	if err != nil {
 		return err
 	}
 
-	return os.RemoveAll(pathStr)
+	if err := validateRemovePath(fullPath); err != nil {
+		return err
+	}
+
+	return os.RemoveAll(fullPath)
 }
 
 
@@ -53,16 +57,10 @@ func validateRemovePath(pathStr string) error {
 		return errors.New("cannot delete root directory, current directory, or empty path")
 	}
 
-	// Additional security: prevent deletion of common system directories
-	absPath, err := filepath.Abs(pathStr)
-	if err != nil {
-		return err
-	}
-
 	// Check if trying to delete system directories
 	systemDirs := []string{"/bin", "/etc", "/usr", "/var", "/sys", "/proc", "/dev"}
 	for _, sysDir := range systemDirs {
-		if strings.HasPrefix(absPath, sysDir) {
+		if pathStr == sysDir || strings.HasPrefix(pathStr, sysDir+string(os.PathSeparator)) {
 			return errors.New("cannot delete system directories")
 		}
 	}

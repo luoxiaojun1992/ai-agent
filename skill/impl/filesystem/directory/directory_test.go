@@ -116,7 +116,7 @@ func TestReader_Do_ReadDirError(t *testing.T) {
 func TestReader_Do_CallbackError(t *testing.T) {
 	dir := t.TempDir()
 	expected := errors.New("cb error")
-	r := &Reader{}
+	r := &Reader{RootDir: dir}
 	err := r.Do(context.Background(), map[string]any{"path": dir}, func(any) (any, error) { return nil, expected })
 	if !errors.Is(err, expected) {
 		t.Fatalf("expected callback error, got: %v", err)
@@ -173,11 +173,23 @@ func TestValidateRemovePath_SystemDirPrefix(t *testing.T) {
 		t.Skip("system dir prefix check uses Unix-style protected dirs")
 	}
 
-	err := validateRemovePath("/dev/null")
+	err := validateRemovePath("/dev")
 	if err == nil {
 		t.Fatalf("expected system directory rejection error")
 	}
 	if !strings.Contains(err.Error(), "system") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+
+	err = validateRemovePath("/dev/null")
+	if err == nil {
+		t.Fatalf("expected system directory prefix rejection error")
+	}
+}
+
+func TestResolvePath_RejectsTraversalOutsideRoot(t *testing.T) {
+	root := t.TempDir()
+	if _, err := resolvePath(root, "../escape-dir"); err == nil {
+		t.Fatalf("expected traversal to be rejected")
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -89,11 +90,21 @@ func (c *Client) SendRequest(method, path string, body any, queryParams url.Valu
 		fullURL = path
 	}
 
+	u, err := url.Parse(fullURL)
+	if err != nil {
+		return nil, err
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil, fmt.Errorf("unsupported URL scheme: must be http or https")
+	}
+	if strings.TrimSpace(u.Host) == "" {
+		return nil, fmt.Errorf("URL host cannot be empty")
+	}
+	if u.User != nil {
+		return nil, fmt.Errorf("url with user info is not allowed")
+	}
+
 	if queryParams != nil {
-		u, err := url.Parse(fullURL)
-		if err != nil {
-			return nil, err
-		}
 		q := u.Query()
 		for k, vs := range queryParams {
 			for _, v := range vs {
