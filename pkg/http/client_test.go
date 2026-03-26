@@ -74,6 +74,18 @@ func TestClient_SendRequest_InvalidURL(t *testing.T) {
 	}
 }
 
+func TestClient_SendRequest_RejectsUnsafeURL(t *testing.T) {
+	cli := NewHTTPClient(5*time.Second, true, 5)
+
+	if _, err := cli.Get("ftp://example.com", nil, nil); err == nil {
+		t.Fatalf("expected unsupported scheme error")
+	}
+
+	if _, err := cli.Get("http://user:pass@example.com", nil, nil); err == nil {
+		t.Fatalf("expected user info rejection error")
+	}
+}
+
 func TestClient_WrapperMethods(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
