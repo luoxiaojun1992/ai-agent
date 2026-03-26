@@ -95,10 +95,10 @@ func (c *Client) SendRequest(method, path string, body any, queryParams url.Valu
 		return nil, err
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return nil, fmt.Errorf("unsupported url scheme: %s", u.Scheme)
+		return nil, fmt.Errorf("URL scheme is required: must be http or https")
 	}
 	if strings.TrimSpace(u.Host) == "" {
-		return nil, fmt.Errorf("invalid url host")
+		return nil, fmt.Errorf("URL host cannot be empty")
 	}
 	if u.User != nil {
 		return nil, fmt.Errorf("url with user info is not allowed")
@@ -112,8 +112,8 @@ func (c *Client) SendRequest(method, path string, body any, queryParams url.Valu
 			}
 		}
 		u.RawQuery = q.Encode()
+		fullURL = u.String()
 	}
-	fullURL = u.String()
 
 	req, err := http.NewRequest(method, fullURL, nil)
 	if err != nil {

@@ -84,6 +84,10 @@ func TestClient_SendRequest_RejectsUnsafeURL(t *testing.T) {
 	if _, err := cli.Get("http://user:pass@example.com", nil, nil); err == nil {
 		t.Fatalf("expected user info rejection error")
 	}
+
+	if _, err := cli.Get("http://", nil, nil); err == nil {
+		t.Fatalf("expected empty host rejection error")
+	}
 }
 
 func TestClient_WrapperMethods(t *testing.T) {
