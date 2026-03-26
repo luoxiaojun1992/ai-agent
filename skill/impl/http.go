@@ -57,6 +57,9 @@ func (h *Http) Do(ctx context.Context, cmdCtx any, callback func(output any) (an
 	if len(h.AllowedURLList) > 0 && !slices.Contains(h.AllowedURLList, pathStr) {
 		return errors.New("path is not allowed")
 	}
+	if len(h.AllowedURLList) > 0 {
+		h.Client.SetAllowedURLList(h.AllowedURLList)
+	}
 
 	body, hasBody := params["body"]
 	if !hasBody {

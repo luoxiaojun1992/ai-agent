@@ -53,6 +53,7 @@ app.post('/api/agent/chat', async (req, res) => {
       res.header('Content-Type', 'text/event-stream');
       res.header('Cache-Control', 'no-cache');
       res.header('Connection', 'keep-alive');
+      res.header('Access-Control-Allow-Origin', '*');
       res.header('X-Accel-Buffering', 'no');
       
       try {

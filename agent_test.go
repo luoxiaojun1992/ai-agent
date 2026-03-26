@@ -99,6 +99,9 @@ type mockHTTPClient struct {
 }
 
 func (m *mockHTTPClient) SetBaseURL(baseURL string) { _ = baseURL }
+func (m *mockHTTPClient) SetAllowedURLList(urlList []string) {
+	_ = urlList
+}
 func (m *mockHTTPClient) AddDefaultHeader(key, value string) {
 	_, _ = key, value
 }

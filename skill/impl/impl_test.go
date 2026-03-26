@@ -23,6 +23,7 @@ type mockHTTPClient struct {
 }
 
 func (m *mockHTTPClient) SetBaseURL(baseURL string)          { _ = baseURL }
+func (m *mockHTTPClient) SetAllowedURLList(urlList []string) { _ = urlList }
 func (m *mockHTTPClient) AddDefaultHeader(key, value string) { _, _ = key, value }
 func (m *mockHTTPClient) Get(path string, queryParams url.Values, headers http.Header) (*httpPKG.Response, error) {
 	return m.SendRequest("GET", path, nil, queryParams, headers)

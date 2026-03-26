@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"maps"
 	"net/http"
 	"net/url"
@@ -19,6 +20,7 @@ const (
 
 type IClient interface {
 	SetBaseURL(baseURL string)
+	SetAllowedURLList(urlList []string)
 	AddDefaultHeader(key, value string)
 	Get(path string, queryParams url.Values, headers http.Header) (*Response, error)
 	Post(path string, body any, queryParams url.Values, headers http.Header) (*Response, error)
@@ -37,6 +39,7 @@ type Client struct {
 	client         *http.Client
 	baseURL        string
 	defaultHeaders http.Header
+	allowedURLSet  map[string]struct{}
 }
 
 func NewHTTPClient(timeout time.Duration, allowRedirects bool, maxRedirects int) *Client {
@@ -55,6 +58,7 @@ func NewHTTPClient(timeout time.Duration, allowRedirects bool, maxRedirects int)
 	return &Client{
 		client:         client,
 		defaultHeaders: make(http.Header),
+		allowedURLSet:  make(map[string]struct{}),
 	}
 }
 
@@ -64,6 +68,17 @@ func (c *Client) SetBaseURL(baseURL string) {
 
 func (c *Client) AddDefaultHeader(key, value string) {
 	c.defaultHeaders.Add(key, value)
+}
+
+func (c *Client) SetAllowedURLList(urlList []string) {
+	clear(c.allowedURLSet)
+	for _, raw := range urlList {
+		key := normalizeURLForAllowlist(raw)
+		if key == "" {
+			continue
+		}
+		c.allowedURLSet[key] = struct{}{}
+	}
 }
 
 func (c *Client) Get(path string, queryParams url.Values, headers http.Header) (*Response, error) {
@@ -102,6 +117,9 @@ func (c *Client) SendRequest(method, path string, body any, queryParams url.Valu
 	}
 	if u.User != nil {
 		return nil, fmt.Errorf("url with user info is not allowed")
+	}
+	if err := c.validateRequestURL(u); err != nil {
+		return nil, err
 	}
 
 	if queryParams != nil {
@@ -165,4 +183,48 @@ func (c *Client) SendRequest(method, path string, body any, queryParams url.Valu
 		Body:       bodyBytes,
 		Headers:    resp.Header,
 	}, nil
+}
+
+func (c *Client) validateRequestURL(u *url.URL) error {
+	allowKey := normalizeURLForAllowlist(u.String())
+	if _, ok := c.allowedURLSet[allowKey]; ok {
+		return nil
+	}
+
+	// If base URL is configured, direct-host control is expected to be done by trusted config.
+	if strings.TrimSpace(c.baseURL) != "" {
+		return nil
+	}
+
+	host := strings.ToLower(strings.TrimSpace(u.Hostname()))
+	if host == "" {
+		return fmt.Errorf("url host cannot be empty")
+	}
+	if host == "localhost" || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") {
+		return fmt.Errorf("url host is not allowed")
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() {
+			return fmt.Errorf("url host is not allowed")
+		}
+	}
+	return nil
+}
+
+func normalizeURLForAllowlist(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u == nil {
+		return ""
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return ""
+	}
+	if strings.TrimSpace(u.Host) == "" || u.User != nil {
+		return ""
+	}
+	path := u.EscapedPath()
+	if path == "" {
+		path = "/"
+	}
+	return fmt.Sprintf("%s://%s%s", strings.ToLower(u.Scheme), strings.ToLower(u.Host), path)
 }
