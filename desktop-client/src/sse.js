@@ -1,4 +1,5 @@
-function parseSSEEvents(chunkBuffer) {
+function parseSSEEvents(chunkBuffer, options = {}) {
+  const { onParseError } = options;
   const frames = chunkBuffer.split('\n\n');
   const remainder = frames.pop() || '';
   const events = [];
@@ -32,7 +33,9 @@ function parseSSEEvents(chunkBuffer) {
         data: JSON.parse(dataLines.join('\n'))
       });
     } catch (error) {
-      // ignore malformed event payloads
+      if (typeof onParseError === 'function') {
+        onParseError(error);
+      }
     }
   }
 

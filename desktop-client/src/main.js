@@ -209,6 +209,23 @@ async function executeScheduledTask(task, options = {}) {
       let chunkBuffer = '';
       let hasContent = false;
       let streamClosed = false;
+      const parseOptions = {
+        onParseError: (error) => {
+          console.debug('Failed to parse scheduled task SSE data:', error);
+        }
+      };
+
+      const processParsedEvents = (events) => {
+        for (const evt of events) {
+          if (!isError && evt.eventType === 'message' && evt.data && evt.data.content) {
+            result += evt.data.content;
+            hasContent = true;
+          } else if (evt.eventType === 'error') {
+            isError = true;
+            result = `Error: ${evt.data && evt.data.error ? evt.data.error : 'Unknown error'}`;
+          }
+        }
+      };
 
       while (!streamClosed) {
         const { done, value } = await reader.read();
@@ -218,31 +235,14 @@ async function executeScheduledTask(task, options = {}) {
         }
 
         chunkBuffer += decoder.decode(value, { stream: true });
-        const parsed = parseSSEEvents(chunkBuffer);
+        const parsed = parseSSEEvents(chunkBuffer, parseOptions);
         chunkBuffer = parsed.remainder;
-
-        for (const evt of parsed.events) {
-          if (!isError && evt.eventType === 'message' && evt.data && evt.data.content) {
-            result += evt.data.content;
-            hasContent = true;
-          } else if (evt.eventType === 'error') {
-            isError = true;
-            result = `Error: ${evt.data && evt.data.error ? evt.data.error : 'Unknown error'}`;
-          }
-        }
+        processParsedEvents(parsed.events);
       }
 
       if (chunkBuffer) {
-        const parsed = parseSSEEvents(`${chunkBuffer}\n\n`);
-        for (const evt of parsed.events) {
-          if (!isError && evt.eventType === 'message' && evt.data && evt.data.content) {
-            result += evt.data.content;
-            hasContent = true;
-          } else if (evt.eventType === 'error') {
-            isError = true;
-            result = `Error: ${evt.data && evt.data.error ? evt.data.error : 'Unknown error'}`;
-          }
-        }
+        const parsed = parseSSEEvents(`${chunkBuffer}\n\n`, parseOptions);
+        processParsedEvents(parsed.events);
       }
 
       if (!isError && !hasContent) {
