@@ -286,7 +286,6 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
-	c.Header("Access-Control-Allow-Origin", "*")
 	c.Header("X-Accel-Buffering", "no") // Disable proxy buffering
 
 	// Create channels for streaming response
