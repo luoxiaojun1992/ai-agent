@@ -200,7 +200,7 @@ func (c *Client) validateRequestURL(u *url.URL) error {
 	if host == "" {
 		return fmt.Errorf("url host cannot be empty")
 	}
-	if host == "localhost" || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") {
+	if host == "localhost" || hasDomainSuffix(host, "local") || hasDomainSuffix(host, "internal") {
 		return fmt.Errorf("url host is not allowed")
 	}
 	if ip := net.ParseIP(host); ip != nil {
@@ -236,4 +236,8 @@ func isUnsafeIP(ip net.IP) bool {
 		ip.IsLinkLocalMulticast() ||
 		ip.IsUnspecified() ||
 		ip.IsMulticast()
+}
+
+func hasDomainSuffix(host, suffix string) bool {
+	return host == suffix || strings.HasSuffix(host, "."+suffix)
 }
