@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -204,7 +204,7 @@ func (c *Client) validateRequestURL(u *url.URL) error {
 		return fmt.Errorf("url host is not allowed")
 	}
 	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() {
+		if isUnsafeIP(ip) {
 			return fmt.Errorf("url host is not allowed")
 		}
 	}
@@ -227,4 +227,13 @@ func normalizeURLForAllowlist(raw string) string {
 		path = "/"
 	}
 	return fmt.Sprintf("%s://%s%s", strings.ToLower(u.Scheme), strings.ToLower(u.Host), path)
+}
+
+func isUnsafeIP(ip net.IP) bool {
+	return ip.IsLoopback() ||
+		ip.IsPrivate() ||
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast() ||
+		ip.IsUnspecified() ||
+		ip.IsMulticast()
 }
