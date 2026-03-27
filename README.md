@@ -116,6 +116,7 @@ Base URL: `http://localhost:8080`
 ## Configuration
 
 Configuration is loaded from environment variables (and `.env` files when present).
+Defaults below follow the current runtime values in `ai-agent-svc/main.go` and `ui-backend/server.js`.
 
 ### UI Backend (`ui-backend/.env`)
 
@@ -140,6 +141,11 @@ MCP_WEB_SEARCH_HOST=http://mcp-web-search:3000
 MCP_CONTEXT_7_CLIENT_HOST=http://mcp-context7:8080
 AGENT_MODE=loop
 ```
+
+Key model variables:
+- `CHAT_MODEL`: primary model for normal chat generation.
+- `SUPERVISOR_MODEL`: model used by supervisor/review logic when supervisor behavior is enabled.
+- `EMBEDDING_MODEL`: model used for embedding generation in memory/vector workflows.
 
 ## Development
 
