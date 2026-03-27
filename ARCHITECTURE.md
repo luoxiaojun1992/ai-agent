@@ -1,49 +1,114 @@
+# AI Agent Architecture
+
+## 1. Runtime Topology
+
 ```mermaid
 graph TB
-    A[User<br/>Web Browser] -->|HTTP| B(Frontend<br/>Nginx)
-    B -->|API Calls| C[UI Backend<br/>Node.js]
-    
-    A2[User<br/>Desktop Client<br/>Electron] -->|IPC/API| C[UI Backend<br/>Node.js]
-    
-    C -->|Service API| D[AI Agent<br/>Go Service]
-    
-    D -->|AI Models| E[Ollama]
-    D -->|Vectors| F[Milvus]
-    D -->|MCP Protocol| G[MCP Services]
-    
-    F --> H[Etcd]
-    F --> I[Minio]
-    
-    subgraph Skills
-        K[File System]
-        L[HTTP Client]
-        M[Time Control]
-        N[Database]
-        O[MCP Tools]
-        P[Team Work]
+    subgraph Clients
+        Web[Web Browser]
+        Desktop[Electron Desktop]
     end
-    
-    K --> D
-    L --> D
-    M --> D
-    N --> D
-    O --> D
-    P --> D
-    
-    style A fill:#e1f5fe,stroke:#01579b
-    style A2 fill:#e1f5fe,stroke:#01579b
-    style B fill:#bbdefb,stroke:#0d47a1
-    style C fill:#9fa8da,stroke:#303f9f,color:#fff
-    style D fill:#9370db,stroke:#4a148c,color:#fff
-    style E fill:#c8e6c9,stroke:#1b5e20
-    style F fill:#b2dfdb,stroke:#004d40
-    style G fill:#e1bee7,stroke:#4a148c
-    style H fill:#ffe0b2,stroke:#e65100
-    style I fill:#ffccbc,stroke:#bf360c
-    style K fill:#fff9c4,stroke:#f57f17
-    style L fill:#fff9c4,stroke:#f57f17
-    style M fill:#fff9c4,stroke:#f57f17
-    style N fill:#fff9c4,stroke:#f57f17
-    style O fill:#fff9c4,stroke:#f57f17
-    style P fill:#fff9c4,stroke:#f57f17
+
+    Frontend[Frontend\nNginx static site\n:3000]
+    UI[UI Backend\nNode.js Express\n:3001]
+    SVC[AI Agent Service\nGo + Gin\n:8080]
+
+    Ollama[Ollama\nLLM + Embedding\n:11434]
+    Milvus[Milvus\nVector DB\n:19530]
+    Etcd[etcd\nmetadata]
+    Minio[MinIO\nobject storage]
+
+    MCPWeb[MCP Web Search\n:4001 -> 3000]
+    MCPCtx[MCP Context7\n:4002 -> 8080]
+
+    Web --> Frontend
+    Frontend --> UI
+    Desktop --> UI
+
+    UI -->|HTTP proxy /api/agent/*| SVC
+
+    SVC -->|chat/embedding| Ollama
+    SVC -->|vector memory| Milvus
+    Milvus --> Etcd
+    Milvus --> Minio
+
+    SVC -->|mcp_web_search| MCPWeb
+    SVC -->|mcp_code_repo_search| MCPCtx
 ```
+
+## 2. Service Responsibilities
+
+### frontend (Nginx)
+- Serves static web UI from `frontend/`.
+- Forwards user interactions to `ui-backend` through browser API calls.
+
+### ui-backend (Node.js / Express)
+- Exposes stable client-facing API: `/api/agent/*`.
+- Proxies requests to `ai-agent-svc` and handles stream passthrough for SSE chat.
+- Provides health endpoint: `/health`.
+
+### ai-agent-svc (Go / Gin)
+- Hosts the core AI agent runtime.
+- Registers skill set and orchestrates tool invocation.
+- Connects to Ollama, Milvus, and MCP services.
+- Exposes endpoints: `/health`, `/status`, `/chat`, `/skill`, `/config`, `/memory`.
+
+### data and model infrastructure
+- **Ollama**: language model inference and embeddings.
+- **Milvus**: vector storage/search for memory retrieval.
+- **etcd + MinIO**: Milvus dependencies for metadata and object storage.
+
+### MCP services
+- **mcp-web-search**: external web search tool endpoint.
+- **mcp-context7**: code/documentation retrieval tool endpoint.
+
+## 3. Request Flow
+
+### Chat flow (non-stream)
+1. Client sends `POST /api/agent/chat` to `ui-backend`.
+2. `ui-backend` forwards to `POST /chat` in `ai-agent-svc`.
+3. `ai-agent-svc` runs agent loop, optionally invokes skills/tools.
+4. Response returns via `ui-backend` to client.
+
+### Chat flow (stream/SSE)
+1. Client sends `POST /api/agent/chat` with `stream: true`.
+2. `ui-backend` opens SSE response and proxies streamed chunks from `ai-agent-svc`.
+3. `ai-agent-svc` emits `message`, `error`, `complete` SSE events.
+
+### Skill flow
+1. Client sends `POST /api/agent/skill` with `skillName` + `parameters`.
+2. `ui-backend` proxies request to `ai-agent-svc`.
+3. `ai-agent-svc` executes registered skill and returns result.
+
+## 4. Registered Skills (Default Runtime)
+
+`ai-agent-svc/main.go` currently registers:
+- `file_reader`
+- `file_writer`
+- `file_remover`
+- `directory_reader`
+- `directory_writer`
+- `directory_remover`
+- `mcp_web_search`
+- `mcp_code_repo_search`
+- `sleep`
+
+## 5. Deployment Modes
+
+- **Full local stack**: `docker compose up --build -d`
+- **Service-only development**:
+  - `ui-backend` locally (`npm run dev`)
+  - `ai-agent-svc` locally (`go run main.go`)
+  - infrastructure via compose as needed
+
+## 6. Testing and CI Architecture
+
+- Unit tests:
+  - Go: `go test ./...`
+  - UI backend: `npm test`
+  - Desktop client: `npm test`
+- Integration/UI:
+  - `docker-compose.api-test.yml`
+  - `docker-compose.ui-test.yml`
+  - `docker-compose.desktop-test.yml`
+- CI workflow: `.github/workflows/ci.yml` (`CI Tests`).
