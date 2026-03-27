@@ -1,15 +1,27 @@
-# AI Agent
+# 🤖 AI Agent
 
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Workflow](https://img.shields.io/badge/CI-CI%20Tests-blue.svg)
+<p align="left">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-green.svg" />
+  <img alt="Workflow" src="https://img.shields.io/badge/CI-CI%20Tests-blue.svg" />
+</p>
 
-A multi-service AI Agent project with:
-- Go-based core agent and HTTP service
-- Node.js API proxy backend for web/desktop clients
-- Static web frontend and Electron desktop client
-- Docker Compose based local deployment and integration testing
+A multi-service AI Agent project that combines:
 
-## Project Layout
+- **Go** core agent library and HTTP service
+- **Node.js** API proxy backend for web/desktop clients
+- **Static Web** frontend and **Electron** desktop client
+- **Docker Compose** local deployment and integration testing
+
+---
+
+## ✨ Highlights
+
+- Clear service layering: `frontend/desktop` → `ui-backend` → `ai-agent-svc`
+- Built-in skills for file/directory operations, web/code search, and utility sleep
+- Runtime config APIs and memory APIs for operational control
+- Compose-based API/UI/Desktop integration tests
+
+## 🧭 Project Layout
 
 ```text
 .
@@ -25,11 +37,11 @@ A multi-service AI Agent project with:
 └── DEPLOYMENT_GUIDE.md       # Deployment and operations guide
 ```
 
-## Architecture
+## 🏗️ Architecture
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full diagram.
 
-Runtime path (typical web request):
+Typical web request path:
 
 ```text
 Browser -> frontend (3000) -> ui-backend (3001) -> ai-agent-svc (8080)
@@ -41,9 +53,10 @@ Browser -> frontend (3000) -> ui-backend (3001) -> ai-agent-svc (8080)
 
 Desktop app calls `ui-backend` directly (same `/api/agent/*` contract).
 
-## Quick Start (Docker Compose)
+## 🚀 Quick Start (Docker Compose)
 
 ### Prerequisites
+
 - Docker 20+
 - Docker Compose v2+
 - Available ports: `3000`, `3001`, `8080`, `11434`, `19530`, `9091`, `4001`, `4002`, `9000`, `9001`
@@ -55,6 +68,7 @@ docker compose up --build -d
 ```
 
 ### Access
+
 - Web UI: http://localhost:3000
 - UI backend health: http://localhost:3001/health
 - AI service health: http://localhost:8080/health
@@ -67,13 +81,14 @@ docker compose down
 # docker compose down -v
 ```
 
-## Services and Endpoints
+## 🔌 Services and Endpoints
 
 ### UI Backend (`ui-backend/server.js`)
+
 Base URL: `http://localhost:3001`
 
 | Method | Endpoint | Description |
-|---|---|---|
+| --- | --- | --- |
 | GET | `/health` | UI backend health |
 | GET | `/api/agent/status` | Proxy agent status |
 | POST | `/api/agent/chat` | Proxy chat (`stream: true` supports SSE) |
@@ -84,10 +99,11 @@ Base URL: `http://localhost:3001`
 | DELETE | `/api/agent/memory` | Proxy memory clear |
 
 ### AI Agent Service (`ai-agent-svc/main.go`)
+
 Base URL: `http://localhost:8080`
 
 | Method | Endpoint | Description |
-|---|---|---|
+| --- | --- | --- |
 | GET | `/health` | Service health |
 | GET | `/status` | Runtime status and persona |
 | POST | `/chat` | Chat (`stream: true` for SSE) |
@@ -97,7 +113,7 @@ Base URL: `http://localhost:8080`
 | GET | `/memory` | Read in-memory contexts |
 | DELETE | `/memory` | Reset memory |
 
-## Registered Skills (Current)
+## 🧩 Registered Skills (Current)
 
 `ai-agent-svc` currently registers the following skills in `ai-agent-svc/main.go`:
 
@@ -113,7 +129,7 @@ Base URL: `http://localhost:8080`
 
 > Note: other skill implementations exist under `skill/impl/`, but the list above is the runtime-registered set by default.
 
-## Configuration
+## ⚙️ Configuration
 
 Configuration is loaded from environment variables (and `.env` files when present).
 Defaults below follow the current runtime values in `ai-agent-svc/main.go` and `ui-backend/server.js`.
@@ -143,11 +159,12 @@ AGENT_MODE=loop
 ```
 
 Key model variables:
-- `CHAT_MODEL`: primary model for normal chat generation.
-- `SUPERVISOR_MODEL`: model used by supervisor/review logic when supervisor behavior is enabled.
-- `EMBEDDING_MODEL`: model used for embedding generation in memory/vector workflows.
 
-## Development
+- `CHAT_MODEL`: primary model for normal chat generation
+- `SUPERVISOR_MODEL`: model used by supervisor/review logic when enabled
+- `EMBEDDING_MODEL`: model used for embedding generation in memory/vector workflows
+
+## 🛠️ Development
 
 ### Go tests (root)
 
@@ -178,7 +195,7 @@ npm ci
 npm test
 ```
 
-## Integration / E2E Testing (Docker Compose)
+## 🧪 Integration / E2E Testing (Docker Compose)
 
 ### API compose tests
 
@@ -201,23 +218,24 @@ docker compose -f docker-compose.desktop-test.yml up --build --abort-on-containe
 docker compose -f docker-compose.desktop-test.yml down -v
 ```
 
-## CI
+## 🔁 CI
 
 Main workflow: `.github/workflows/ci.yml` (`CI Tests`)
 
 Pipeline includes:
+
 - `ui-backend-tests`
 - `api-compose-tests`
 - `ui-compose-tests`
 - `desktop-compose-tests`
 - `go-root-tests` (with coverage gate)
 
-## Security Notes
+## 🔒 Security Notes
 
-- Filesystem skills resolve paths under `RootDir` and reject traversal outside root.
-- CORS is configured via environment variables.
-- Treat all external API payloads as untrusted input.
+- Filesystem skills resolve paths under `RootDir` and reject traversal outside root
+- CORS is configured via environment variables
+- Treat all external API payloads as untrusted input
 
-## License
+## 📄 License
 
 MIT
