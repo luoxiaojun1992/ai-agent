@@ -1,88 +1,99 @@
 # AI Agent Instructions for This Repository
 
 ## Scope and Goal
-- This repository contains a multi-service AI Agent system.
-- Main stacks:
-  - Go core agent library and service
-  - Node.js UI backend
-  - Electron desktop client
-  - Docker Compose for local full-stack deployment
-- Prioritize safe, minimal, and testable changes.
+- This repository implements a multi-service AI Agent system.
+- Core stacks:
+  - Go core agent library and HTTP service (`ai-agent-svc`)
+  - Node.js API proxy backend (`ui-backend`)
+  - Electron desktop client (`desktop-client`)
+  - Static frontend (`frontend`) and Docker Compose deployment
+- Prefer focused, minimal, testable changes.
 
 ## Repository Map
-- Go core library: `agent.go`, `skill/`, `pkg/`, `util/`, `checkpoint.go`
-- Go HTTP service: `ai-agent-svc/main.go`
-- Node.js API proxy backend: `ui-backend/server.js`
-- Desktop client (Electron): `desktop-client/src/`
-- Web frontend static app: `frontend/`
-- Deployment and environment docs: `README.md`, `ARCHITECTURE.md`, `DEPLOYMENT_GUIDE.md`, `docker-compose.yml`
+- Core agent and memory logic: `agent.go`, `checkpoint.go`, `util/`
+- Skill system: `skill/` and `skill/impl/`
+- AI service entrypoint: `ai-agent-svc/main.go`
+- UI backend entrypoint: `ui-backend/server.js`
+- Desktop app: `desktop-client/src/`
+- Architecture and operations docs: `README.md`, `ARCHITECTURE.md`, `DEPLOYMENT_GUIDE.md`
+- CI workflow: `.github/workflows/ci.yml`
 
-## Working Rules
-- Keep edits focused and avoid unrelated refactors.
-- Preserve existing API behavior unless explicitly requested.
-- Maintain backward compatibility for existing endpoints:
-  - AI service: `/health`, `/status`, `/chat`, `/skill`, `/config`, `/memory`
-  - UI backend proxy: `/api/agent/*`
-- For user-facing behavior changes, update related docs.
+## API Compatibility Requirements
+Preserve existing externally used endpoints unless explicitly requested:
 
-## Code Style and Conventions
-- Go:
-  - Keep code idiomatic and context-aware (`context.Context` propagation where relevant).
-  - Return explicit errors with actionable messages.
-  - Do not introduce global mutable state unless necessary.
-- Node.js (`ui-backend`):
-  - Keep handlers small and resilient.
-  - Preserve streaming chat behavior (`text/event-stream`) when touching `/api/agent/chat`.
-- Electron (`desktop-client`):
-  - Respect separation between `main`, `preload`, and `renderer` responsibilities.
+- AI service (`ai-agent-svc`):
+  - `GET /health`
+  - `GET /status`
+  - `POST /chat`
+  - `POST /skill`
+  - `GET /config`
+  - `PUT /config`
+  - `GET /memory`
+  - `DELETE /memory`
+
+- UI backend proxy (`ui-backend`):
+  - `GET /health`
+  - `GET /api/agent/status`
+  - `POST /api/agent/chat`
+  - `POST /api/agent/skill`
+  - `GET /api/agent/config`
+  - `PUT /api/agent/config`
+  - `GET /api/agent/memory`
+  - `DELETE /api/agent/memory`
+
+## Skills and Runtime Behavior
+- Skill names and payload contracts are part of runtime behavior; do not change casually.
+- `ai-agent-svc` currently registers these skills by default:
+  - `file_reader`, `file_writer`, `file_remover`
+  - `directory_reader`, `directory_writer`, `directory_remover`
+  - `mcp_web_search`, `mcp_code_repo_search`
+  - `sleep`
+- If you add or remove registered skills, update both `README.md` and `ARCHITECTURE.md`.
+
+## Code Conventions
+### Go
+- Keep code idiomatic and explicit.
+- Propagate `context.Context` for request-scoped work.
+- Return actionable errors.
+- Avoid introducing global mutable state unless necessary.
+
+### Node.js (`ui-backend`)
+- Keep handlers small and resilient.
+- Preserve streaming (`text/event-stream`) behavior in `/api/agent/chat`.
+- Keep proxy contracts stable (`message`, `stream`, `agentConfig`).
+
+### Electron (`desktop-client`)
+- Respect process boundaries (`main`, `preload`, `renderer`).
+- Avoid pushing backend logic into renderer.
 
 ## Security Constraints
-- Treat all external inputs as untrusted.
-- Never weaken path traversal protections in filesystem skills.
-- Avoid logging secrets or sensitive payloads.
-- Keep CORS changes explicit and environment-driven.
+- Treat all incoming payloads as untrusted.
+- Do not weaken filesystem path traversal protections in filesystem skills.
+- Do not log secrets or sensitive user payloads.
+- Keep CORS configuration explicit and environment-driven.
 
-## Validation Checklist After Changes
-- If Go files changed:
-  - Run `go test ./...` at repository root.
-  - Run `go test ./...` inside `ai-agent-svc/` when service code changes.
+## Validation Checklist
+Run only what is relevant to touched areas:
+
+- If Go code changed:
+  - `go test ./...` (repo root)
+  - `cd ai-agent-svc && go test ./...` when service code changed
 - If `ui-backend` changed:
-  - Run `npm test` in `ui-backend/`.
-  - Sanity check `POST /api/agent/chat` non-stream and stream modes.
+  - `cd ui-backend && npm ci && npm test -- --runInBand`
+  - Sanity check `/api/agent/chat` non-stream + stream
 - If `desktop-client` changed:
-  - Run `npm run build` or `npm run start` in `desktop-client/` as appropriate.
-- If cross-service contracts changed:
-  - Verify with Docker Compose integration run.
-
-## Preferred Development Commands
-- Full stack (Docker):
-  - `docker-compose up --build -d`
-- Go root:
-  - `go test ./...`
-- AI service:
-  - `cd ai-agent-svc && go test ./...`
-  - `cd ai-agent-svc && go run main.go`
-- UI backend:
-  - `cd ui-backend && npm install && npm run dev`
-- Desktop client:
-  - `cd desktop-client && npm install && npm run start`
-
-## Change Guidance by Area
-- Skill system (`skill/` and `skill/impl/`):
-  - Keep skill names and payload contracts stable.
-  - If adding a skill, include description updates in docs and service registration.
-- MCP integration (`pkg/mcp/`, service bootstrap):
-  - Handle initialization failures gracefully.
-  - Keep timeout and retry behavior explicit.
-- Milvus and Ollama clients (`pkg/milvus/`, `pkg/ollama/`):
-  - Preserve model and host configurability via env vars.
+  - `cd desktop-client && npm ci && npm test`
+  - `npm run build` when packaging/build behavior is touched
+- If contracts or end-to-end behavior changed:
+  - run compose-based integration tests from `tests/` compose files
 
 ## Documentation Policy
-- Update `README.md` and/or deployment docs when introducing:
-  - New environment variables
-  - New ports, endpoints, or services
-  - New build or runtime prerequisites
+Update docs when behavior changes:
+- `README.md`: developer-facing usage and APIs
+- `ARCHITECTURE.md`: component topology and data flow
+- `DEPLOYMENT_GUIDE.md`: environment variables, ports, operations
 
 ## Non-Goals
-- Do not migrate frameworks or replace architecture without explicit request.
-- Do not silently change default models, ports, or service URLs.
+- Do not migrate frameworks or redesign architecture unless requested.
+- Do not silently change default service URLs, ports, or model names.
+- Do not make broad refactors unrelated to the task.

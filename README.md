@@ -1,427 +1,217 @@
-# AI Agent System - Enhanced Version
+# AI Agent
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)
+![Workflow](https://img.shields.io/badge/CI-CI%20Tests-blue.svg)
 
-## 🚀 Overview
+A multi-service AI Agent project with:
+- Go-based core agent and HTTP service
+- Node.js API proxy backend for web/desktop clients
+- Static web frontend and Electron desktop client
+- Docker Compose based local deployment and integration testing
 
-This is an enhanced version of the AI Agent system with comprehensive skill documentation, security improvements, modern microservices architecture.
+## Project Layout
 
-## 🏗️ System Architecture
-
-```mermaid
-graph TB
-    A[User<br/>Web Browser] -->|HTTP| B(Frontend<br/>Nginx)
-    B -->|API Calls| C[UI Backend<br/>Node.js]
-    
-    A2[User<br/>Desktop Client<br/>Electron] -->|IPC/API| C[UI Backend<br/>Node.js]
-    
-    C -->|Service API| D[AI Agent<br/>Go Service]
-    
-    D -->|AI Models| E[Ollama]
-    D -->|Vectors| F[Milvus]
-    D -->|MCP Protocol| G[MCP Services]
-    
-    F --> H[Etcd]
-    F --> I[Minio]
-    
-    subgraph Skills
-        K[File System]
-        L[HTTP Client]
-        M[Time Control]
-        N[Database]
-        O[MCP Tools]
-        P[Team Work]
-    end
-    
-    K --> D
-    L --> D
-    M --> D
-    N --> D
-    O --> D
-    P --> D
-    
-    style A fill:#e1f5fe,stroke:#01579b
-    style A2 fill:#e1f5fe,stroke:#01579b
-    style B fill:#bbdefb,stroke:#0d47a1
-    style C fill:#9fa8da,stroke:#303f9f,color:#fff
-    style D fill:#9370db,stroke:#4a148c,color:#fff
-    style E fill:#c8e6c9,stroke:#1b5e20
-    style F fill:#b2dfdb,stroke:#004d40
-    style G fill:#e1bee7,stroke:#4a148c
-    style H fill:#ffe0b2,stroke:#e65100
-    style I fill:#ffccbc,stroke:#bf360c
-    style K fill:#fff9c4,stroke:#f57f17
-    style L fill:#fff9c4,stroke:#f57f17
-    style M fill:#fff9c4,stroke:#f57f17
-    style N fill:#fff9c4,stroke:#f57f17
-    style O fill:#fff9c4,stroke:#f57f17
-    style P fill:#fff9c4,stroke:#f57f17
+```text
+.
+├── agent.go                  # Core agent library
+├── ai-agent-svc/             # Go HTTP service
+├── ui-backend/               # Node.js API proxy
+├── frontend/                 # Static web app (served by Nginx)
+├── desktop-client/           # Electron desktop app
+├── skill/                    # Skill definitions and implementations
+├── tests/                    # API/UI/Desktop test runners
+├── docker-compose.yml        # Full local stack
+├── ARCHITECTURE.md           # Architecture diagram and data flow
+└── DEPLOYMENT_GUIDE.md       # Deployment and operations guide
 ```
 
-## ✨ New Features
+## Architecture
 
-### 🎯 Enhanced Skills
-- **Complete Documentation**: All 12 skills now have comprehensive descriptions
-- **Security Improvements**: Path traversal protection and input validation
-- **Better Error Handling**: Enhanced error messages and type safety
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full diagram.
 
-### 🌐 Modern Web Interface
-- **Real-time Chat**: Interactive conversation with the AI agent
-- **Skill Explorer**: Browse and execute available skills
-- **Configuration Management**: View and update agent settings
-- **Memory Visualization**: Monitor conversation history and context
+Runtime path (typical web request):
 
-### 🔧 Microservices Architecture
-- **UI Backend Service**: Node.js Express server with CORS support
-- **AI Agent Microservice**: Go-based Gin server with all skill integrations
-- **Containerized Deployment**: Docker Compose orchestration
-- **Health Monitoring**: Service health checks and status endpoints
-
-## 📁 Project Structure
-
-```
-├── skill/                      # Enhanced skill implementations
-├── ui-backend/                 # Node.js UI backend service
-├── ai-agent-svc/              # Go AI Agent microservice
-├── frontend/                   # Web interface
-├── docker-compose.yml          # Complete service stack
+```text
+Browser -> frontend (3000) -> ui-backend (3001) -> ai-agent-svc (8080)
+                                                    |- Ollama (11434)
+                                                    |- Milvus (19530)
+                                                    |- MCP Web Search
+                                                    `- MCP Context7
 ```
 
-## 🚀 Quick Start
+Desktop app calls `ui-backend` directly (same `/api/agent/*` contract).
+
+## Quick Start (Docker Compose)
 
 ### Prerequisites
-- Docker and Docker Compose
-- Ports 3000, 3001, 8080, 19530, 11434 available
+- Docker 20+
+- Docker Compose v2+
+- Available ports: `3000`, `3001`, `8080`, `11434`, `19530`, `9091`, `4001`, `4002`, `9000`, `9001`
 
-### Start All Services
-```bash
-# Clone the enhanced repository
-git clone <repository-url>
-cd ai-agent
-
-# Start all services with Docker Compose
-docker-compose up --build -d
-```
-
-### Access the System
-- **🌐 Web Interface**: http://localhost:3000
-- **🔌 API Backend**: http://localhost:3001
-- **🤖 AI Agent Service**: http://localhost:8080
-- **📊 Health Check**: http://localhost:3001/health
-
-## 🧪 Testing
-
-### Test Categories
-- ✅ **Health & Connectivity**: Service health and CORS
-- ✅ **Agent Communication**: Chat and status APIs
-- ✅ **Skill Management**: All 12 skill executions
-- ✅ **Memory Management**: Context and persistence
-- ✅ **Configuration**: Settings management
-- ✅ **Error Handling**: Invalid inputs and edge cases
-- ✅ **Integration**: End-to-end workflows
-
-### Mock AI Agent Service (for API/UI tests)
-For API tests and future UI tests, a lightweight mock service is available at:
-
-`/tests/mock/ai-agent-svc-mock`
-
-Start it locally:
+### Start full stack
 
 ```bash
-cd tests/mock/ai-agent-svc-mock
-go run .
+docker compose up --build -d
 ```
 
-Optional port override:
+### Access
+- Web UI: http://localhost:3000
+- UI backend health: http://localhost:3001/health
+- AI service health: http://localhost:8080/health
+
+### Stop
 
 ```bash
-MOCK_AI_AGENT_SVC_PORT=18081 go run .
+docker compose down
+# remove volumes if needed
+# docker compose down -v
 ```
 
-The mock service provides compatible endpoints:
-- `GET /health`
-- `GET /status`
-- `POST /chat` (supports `stream: true` SSE mode)
-- `POST /skill`
-- `GET /config`
-- `PUT /config`
-- `GET /memory`
-- `DELETE /memory`
+## Services and Endpoints
 
-### API integration tests with Docker Compose
-You can run API integration tests (ui-backend + mock ai-agent-svc) with:
+### UI Backend (`ui-backend/server.js`)
+Base URL: `http://localhost:3001`
 
-```bash
-docker compose -f docker-compose.api-test.yml up --build --abort-on-container-exit --exit-code-from api-test-runner
-docker compose -f docker-compose.api-test.yml down -v
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | UI backend health |
+| GET | `/api/agent/status` | Proxy agent status |
+| POST | `/api/agent/chat` | Proxy chat (`stream: true` supports SSE) |
+| POST | `/api/agent/skill` | Proxy skill execution |
+| GET | `/api/agent/config` | Proxy config read |
+| PUT | `/api/agent/config` | Proxy config update |
+| GET | `/api/agent/memory` | Proxy memory snapshot |
+| DELETE | `/api/agent/memory` | Proxy memory clear |
 
-### UI tests with Playwright + Docker Compose
-You can run frontend UI tests (frontend + ui-backend + mock ai-agent-svc + playwright runner) with:
+### AI Agent Service (`ai-agent-svc/main.go`)
+Base URL: `http://localhost:8080`
 
-```bash
-docker compose -f docker-compose.ui-test.yml up --build --abort-on-container-exit --exit-code-from ui-test-runner
-docker compose -f docker-compose.ui-test.yml down -v
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Service health |
+| GET | `/status` | Runtime status and persona |
+| POST | `/chat` | Chat (`stream: true` for SSE) |
+| POST | `/skill` | Execute one skill |
+| GET | `/config` | Read agent config |
+| PUT | `/config` | Update runtime config |
+| GET | `/memory` | Read in-memory contexts |
+| DELETE | `/memory` | Reset memory |
 
-Playwright test videos are recorded under `tests/ui-test-runner/test-results`, and Allure raw results are generated in `tests/ui-test-runner/allure-results`.
+## Registered Skills (Current)
 
-### Desktop client tests with Playwright + Docker Compose
-You can run desktop client UI tests (desktop-client + ui-backend + mock ai-agent-svc + playwright runner) with:
+`ai-agent-svc` currently registers the following skills in `ai-agent-svc/main.go`:
 
-```bash
-docker compose -f docker-compose.desktop-test.yml up --build --abort-on-container-exit --exit-code-from desktop-test-runner
-docker compose -f docker-compose.desktop-test.yml down -v
-```
+1. `file_reader`
+2. `file_writer`
+3. `file_remover`
+4. `directory_reader`
+5. `directory_writer`
+6. `directory_remover`
+7. `mcp_web_search`
+8. `mcp_code_repo_search`
+9. `sleep`
 
-Desktop Playwright test videos are recorded under `tests/desktop-test-runner/test-results`, and Allure raw results are generated in `tests/desktop-test-runner/allure-results`.
+> Note: other skill implementations exist under `skill/impl/`, but the list above is the runtime-registered set by default.
 
-Implementation note:
-- `desktop-client` and `tests/desktop-test-runner` remain in different directories.
-- `desktop-test-runner` is built from `./tests/desktop-test-runner` only.
-- In `docker-compose.desktop-test.yml`, `./desktop-client` is mounted read-only to `/app/workspace/desktop-client`.
-- At container startup, runner copies it to `/app/desktop-client`, installs dependencies there, and passes `DESKTOP_CLIENT_PATH=/app/desktop-client`.
-- Playwright resolves Electron app path from `DESKTOP_CLIENT_PATH` and launches Electron from that copied desktop-client directory.
+## Configuration
 
-## 🔧 Available Skills
+Configuration is loaded from environment variables (and `.env` files when present).
 
-| Skill | Description |
-|-------|-------------|
-| `file_reader` | Read content from files |
-| `file_writer` | Write content to files |
-| `file_remover` | Delete files |
-| `directory_reader` | List directory contents |
-| `directory_writer` | Create directories |
-| `directory_remover` | Remove directories |
-| `http` | Make HTTP requests |
-| `sleep` | Pause execution |
-| `milvus_insert` | Insert vectors into Milvus |
-| `milvus_search` | Search vectors in Milvus |
-| `ollama_embedding` | Generate text embeddings |
-| `mcp` | Call MCP tools |
-| `team` | Team collaboration functionality |
+### UI Backend (`ui-backend/.env`)
 
-## 🔐 Security Features
-
-- **Path Traversal Protection**: Secure file system operations
-- **Input Validation**: Comprehensive parameter validation
-- **CORS Configuration**: Cross-origin request handling
-- **Error Handling**: Secure error messages without sensitive data
-- **System Protection**: Prevents access to critical system directories
-
-## 📊 Performance
-
-- **Response Time**: < 5 seconds average
-- **Concurrent Requests**: Handles 5+ simultaneous requests
-- **Memory Usage**: Optimized for container deployment
-- **Scalability**: Microservices architecture supports horizontal scaling
-
-## 🔧 Configuration
-
-The service can be configured in three ways:
-1. Environment variables
-2. `.env` file (recommended for development)
-3. Default values
-
-To use the `.env` file approach, create a `.env` file in the service directories based on `.env.example`:
-
-```bash
-# In ai-agent-svc directory
-cp .env.example .env
-
-# In ui-backend directory
-cp .env.example .env
-```
-
-Then modify the `.env` file according to your environment.
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | The port number for the service | 3001 (UI Backend), 8080 (AI Agent SVC) |
-| `CORS_ORIGIN` / `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` (UI Backend), `*` (AI Agent SVC) |
-| `AI_AGENT_SVC_URL` | URL of the AI Agent service | `http://ai-agent-svc:8080` |
-| `CHAT_MODEL` | Model name for chat completion | `qwen3:0.6b` |
-| `EMBEDDING_MODEL` | Model name for text embeddings | `nomic-embed-text` |
-| `OLLAMA_HOST` | Host address for Ollama service | `http://ollama:11434` |
-| `MILVUS_HOST` | Host address for Milvus vector database | `milvus:19530` |
-| `CONTEXT_RESERVE_TOKENS` | Reserved token budget for model output and safety margin | `256` |
-| `NEAR_DUPLICATE_THRESHOLD` | Near-duplicate folding threshold (0-1, larger is stricter) | `0.90` |
-
-#### UI Backend
 ```env
 PORT=3001
 CORS_ORIGIN=http://localhost:3000
 AI_AGENT_SVC_URL=http://ai-agent-svc:8080
 ```
 
-#### AI Agent Service
+### AI Agent Service (`ai-agent-svc/.env`)
+
 ```env
 PORT=8080
 CORS_ORIGINS=*
-CHAT_MODEL=qwen3:0.6b
+CHAT_MODEL=qwen3:4b
 EMBEDDING_MODEL=nomic-embed-text
+SUPERVISOR_MODEL=qwen3:4b
 OLLAMA_HOST=http://ollama:11434
 MILVUS_HOST=milvus:19530
-CONTEXT_RESERVE_TOKENS=256
-NEAR_DUPLICATE_THRESHOLD=0.90
+MILVUS_COLLECTION=ai_agent_memory
+MCP_WEB_SEARCH_HOST=http://mcp-web-search:3000
+MCP_CONTEXT_7_CLIENT_HOST=http://mcp-context7:8080
+AGENT_MODE=loop
 ```
 
-## 📚 API Documentation
+## Development
 
-### Core Endpoints
+### Go tests (root)
 
-#### Chat with Agent
-```http
-POST /api/agent/chat
-Content-Type: application/json
-
-{
-  "message": "Hello, how are you?",
-  "agentConfig": {
-    "character": "Optional custom character"
-  }
-}
-```
-
-#### Execute Skill
-```http
-POST /api/agent/skill
-Content-Type: application/json
-
-{
-  "skillName": "file_writer",
-  "parameters": {
-    "path": "test.txt",
-    "content": "Hello World"
-  }
-}
-```
-
-#### Get Available Skills
-```http
-GET /api/agent/skills
-```
-
-#### Manage Memory
-```http
-GET /api/agent/memory      # View memory
-DELETE /api/agent/memory   # Clear memory
-```
-
-## 🐳 Docker Services
-
-| Service | Port | Description |
-|---------|------|-------------|
-| `frontend` | 3000 | Web interface |
-| `ui-backend` | 3001 | API backend |
-| `ai-agent-svc` | 8080 | AI Agent service |
-| `milvus` | 19530 | Vector database |
-| `ollama` | 11434 | AI models |
-
-## 🔄 Development Workflow
-
-### Local Development
 ```bash
-# Start infrastructure services
-docker-compose up milvus ollama
+go test ./...
+```
 
-# Run UI Backend locally
-cd ui-backend
-npm install
-npm run dev
+### AI service tests
 
-# Run AI Agent Service locally
+```bash
 cd ai-agent-svc
-go run main.go
+go test ./...
 ```
 
-## 📈 Monitoring
+### UI backend tests
 
-### Health Checks
-- **UI Backend**: `GET /health`
-- **AI Agent SVC**: `GET /health`
-- **Milvus**: Built-in health endpoint
-- **Ollama**: `GET /api/tags`
-
-### Logs
 ```bash
-# View all service logs
-docker-compose logs
-
-# View specific service logs
-docker-compose logs ai-agent-svc
-docker-compose logs ui-backend
+cd ui-backend
+npm ci
+npm test -- --runInBand
 ```
 
-## 🚨 Troubleshooting
+### Desktop client tests
 
-### Common Issues
-
-1. **Services not starting**
-   - Check port availability
-   - Verify Docker daemon is running
-   - Check Docker Compose version
-
-2. **AI Agent not responding**
-   - Verify Ollama models are loaded
-   - Check Milvus connection
-   - Review service logs
-
-3. **Tests failing**
-   - Ensure all services are healthy
-   - Check network connectivity
-   - Verify environment configuration
-
-### Debug Commands
 ```bash
-# Check service status
-docker-compose ps
-
-# View service logs
-docker-compose logs -f <service-name>
-
-# Test API directly
-curl http://localhost:3001/api/agent/status
-
-# Test skill execution
-curl -X POST http://localhost:3001/api/agent/skill \
-  -H "Content-Type: application/json" \
-  -d '{"skillName":"sleep","parameters":{"duration":"1s"}}'
+cd desktop-client
+npm ci
+npm test
 ```
 
-## 🤝 Contributing
+## Integration / E2E Testing (Docker Compose)
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add/update tests
-5. Run the test suite
-6. Submit a pull request
+### API compose tests
 
-## 📄 License
+```bash
+docker compose -f docker-compose.api-test.yml up --build --abort-on-container-exit --exit-code-from api-test-runner
+docker compose -f docker-compose.api-test.yml down -v
+```
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+### Frontend UI tests (Playwright)
 
-## 🙏 Acknowledgments
+```bash
+docker compose -f docker-compose.ui-test.yml up --build --abort-on-container-exit --exit-code-from ui-test-runner
+docker compose -f docker-compose.ui-test.yml down -v
+```
 
-- Original AI Agent framework by @luoxiaojun1992
-- Ollama for AI model serving
-- Milvus for vector database
-- Gin framework for Go web services
-- Express.js for Node.js backend
+### Desktop UI tests (Playwright)
 
----
+```bash
+docker compose -f docker-compose.desktop-test.yml up --build --abort-on-container-exit --exit-code-from desktop-test-runner
+docker compose -f docker-compose.desktop-test.yml down -v
+```
 
-## 📞 Support
+## CI
 
-For issues, questions, or contributions:
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the API documentation
-- Run the test suite for validation
+Main workflow: `.github/workflows/ci.yml` (`CI Tests`)
 
-**Enjoy your enhanced AI Agent system!** 🤖✨
+Pipeline includes:
+- `ui-backend-tests`
+- `api-compose-tests`
+- `ui-compose-tests`
+- `desktop-compose-tests`
+- `go-root-tests` (with coverage gate)
+
+## Security Notes
+
+- Filesystem skills resolve paths under `RootDir` and reject traversal outside root.
+- CORS is configured via environment variables.
+- Treat all external API payloads as untrusted input.
+
+## License
+
+MIT
