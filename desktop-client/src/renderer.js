@@ -509,7 +509,8 @@ async function selectImagesForUpload() {
     }
 
     if (failed.length > 0) {
-        showNotification(`Failed to read ${failed.length} image(s): ${failed[0].reason}`, 'error');
+        const more = failed.length > 1 ? ` (and ${failed.length - 1} more)` : '';
+        showNotification(`Failed to read ${failed.length} image(s): ${failed[0].reason}${more}`, 'error');
     }
 
     if (uploaded.length === 0) {
