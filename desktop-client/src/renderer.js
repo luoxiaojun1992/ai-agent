@@ -7,6 +7,7 @@ let currentStreamController = null;
 let messageHistory = [];
 const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
 const runningScheduledTaskIds = new Set();
+let selectedImages = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
@@ -154,30 +155,32 @@ async function sendMessage() {
     const message = input.value.trim();
     const mode = document.querySelector('input[name="chatMode"]:checked').value;
     
-    if (!message || isLoading) return;
+    if ((!message && selectedImages.length === 0) || isLoading) return;
     
     isLoading = true;
     updateUIState();
     
     // Add user message
-    addMessage(message, 'user');
+    addMessage(formatUserMessage(message, selectedImages.length), 'user');
     input.value = '';
     
     // Save to history
-    messageHistory.push({ role: 'user', content: message });
+    messageHistory.push({ role: 'user', content: formatUserMessage(message, selectedImages.length) });
     
     if (mode === 'streaming') {
-        await sendStreamingMessage(message);
+        await sendStreamingMessage(message, selectedImages);
     } else {
-        await sendBlockingMessage(message);
+        await sendBlockingMessage(message, selectedImages);
     }
+
+    clearSelectedImages();
     
     isLoading = false;
     updateUIState();
 }
 
 // Send blocking mode message
-async function sendBlockingMessage(message) {
+async function sendBlockingMessage(message, images = []) {
     try {
         const response = await fetch(`${API_BASE}/agent/chat`, {
             method: 'POST',
@@ -186,6 +189,7 @@ async function sendBlockingMessage(message) {
             },
             body: JSON.stringify({
                 message: message,
+                images: images,
                 stream: false
             })
         });
@@ -204,7 +208,7 @@ async function sendBlockingMessage(message) {
 }
 
 // Send streaming message
-async function sendStreamingMessage(message) {
+async function sendStreamingMessage(message, images = []) {
     try {
         const response = await fetch(`${API_BASE}/agent/chat`, {
             method: 'POST',
@@ -213,6 +217,7 @@ async function sendStreamingMessage(message) {
             },
             body: JSON.stringify({
                 message: message,
+                images: images,
                 stream: true
             })
         });
@@ -390,6 +395,7 @@ function finalizeStreamingMessage(messageElement, content, error = null) {
 function updateUIState() {
     const sendBtn = document.getElementById('sendBtn');
     const plannerBtn = document.getElementById('plannerBtn');
+    const uploadImageBtn = document.getElementById('uploadImageBtn');
     const input = document.getElementById('messageInput');
     const isTaskRunning = runningScheduledTaskIds.size > 0;
     
@@ -397,11 +403,13 @@ function updateUIState() {
         sendBtn.disabled = true;
         sendBtn.innerHTML = isLoading ? '<div class="loading-spinner"></div>' : 'Send';
         plannerBtn.disabled = true;
+        uploadImageBtn.disabled = true;
         input.disabled = true;
     } else {
         sendBtn.disabled = false;
         sendBtn.innerHTML = 'Send';
         plannerBtn.disabled = false;
+        uploadImageBtn.disabled = false;
         input.disabled = false;
         input.focus();
     }
@@ -418,12 +426,69 @@ function clearChat() {
     `;
     
     messageHistory = [];
+    clearSelectedImages();
     
     // Cancel ongoing stream
     if (currentStreamController) {
         currentStreamController.cancelled = true;
         currentStreamController = null;
     }
+}
+
+function formatUserMessage(message, imageCount) {
+    if (message && imageCount > 0) {
+        return `${message}\n[${imageCount} image(s) uploaded]`;
+    }
+    if (message) {
+        return message;
+    }
+    return `[${imageCount} image(s) uploaded]`;
+}
+
+function updateUploadHint() {
+    const uploadHint = document.getElementById('uploadHint');
+    if (!uploadHint) {
+        return;
+    }
+    if (!selectedImages.length) {
+        uploadHint.textContent = '';
+        return;
+    }
+    uploadHint.textContent = `Selected image(s): ${selectedImages.map(item => item.name).join(', ')}`;
+}
+
+function clearSelectedImages() {
+    selectedImages = [];
+    updateUploadHint();
+}
+
+async function selectImagesForUpload() {
+    if (!window.electronAPI) {
+        showNotification('Image upload is only available in desktop app', 'error');
+        return;
+    }
+
+    const result = await window.electronAPI.showOpenDialog({
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }]
+    });
+
+    if (result.canceled || !Array.isArray(result.filePaths) || result.filePaths.length === 0) {
+        return;
+    }
+
+    const uploaded = [];
+    for (const filePath of result.filePaths) {
+        const readResult = await window.electronAPI.readFileAsBase64(filePath);
+        if (!readResult || !readResult.success || !readResult.data) {
+            showNotification(`Failed to read image: ${filePath}`, 'error');
+            return;
+        }
+        uploaded.push({ name: filePath.split(/[\\/]/).pop() || filePath, data: readResult.data });
+    }
+
+    selectedImages = uploaded;
+    updateUploadHint();
 }
 
 // Run Agent Planner

@@ -45,7 +45,8 @@ app.get('/api/agent/status', async (req, res) => {
 // Send message to agent - supports both streaming and non-streaming modes
 app.post('/api/agent/chat', async (req, res) => {
   try {
-    const { message, agentConfig, stream } = req.body;
+    const { message, images, agentConfig, stream } = req.body;
+    const normalizedImages = Array.isArray(images) ? images : undefined;
     
     // Check if streaming is requested
     if (stream) {
@@ -60,6 +61,7 @@ app.post('/api/agent/chat', async (req, res) => {
         // Forward the streaming request to AI Agent Service
         const response = await axios.post(`${AI_AGENT_SVC_URL}/chat`, {
           message,
+          images: normalizedImages,
           agentConfig,
           stream: true
         }, {
@@ -99,6 +101,7 @@ app.post('/api/agent/chat', async (req, res) => {
       // Handle regular non-streaming response
       const response = await axios.post(`${AI_AGENT_SVC_URL}/chat`, {
         message,
+        images: normalizedImages,
         agentConfig,
         stream: false
       });

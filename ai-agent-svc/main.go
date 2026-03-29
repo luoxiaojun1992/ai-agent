@@ -220,6 +220,7 @@ func (s *Server) statusHandler(c *gin.Context) {
 
 type ChatRequest struct {
 	Message     string                 `json:"message"`
+	Images      []string               `json:"images,omitempty"`
 	AgentConfig map[string]interface{} `json:"agentConfig,omitempty"`
 	Stream      bool                   `json:"stream,omitempty"`
 }
@@ -231,14 +232,14 @@ func (s *Server) chatHandler(c *gin.Context) {
 		return
 	}
 
-	if req.Message == "" {
-		c.JSON(400, gin.H{"error": "Message is required"})
+	if req.Message == "" && len(req.Images) == 0 {
+		c.JSON(400, gin.H{"error": "Message or images are required"})
 		return
 	}
 
 	// Check if stream mode is requested
 	if req.Stream {
-		s.handleStreamChat(c, req.Message)
+		s.handleStreamChat(c, req.Message, req.Images)
 		return
 	}
 
@@ -255,7 +256,7 @@ func (s *Server) chatHandler(c *gin.Context) {
 		}()
 
 		var response strings.Builder
-		err := s.agent.ListenAndWatch(c.Request.Context(), req.Message, nil, func(resp string) error {
+		err := s.agent.ListenAndWatch(c.Request.Context(), req.Message, req.Images, func(resp string) error {
 			response.WriteString(resp)
 			return nil
 		})
@@ -281,7 +282,7 @@ func (s *Server) chatHandler(c *gin.Context) {
 	}
 }
 
-func (s *Server) handleStreamChat(c *gin.Context, message string) {
+func (s *Server) handleStreamChat(c *gin.Context, message string, images []string) {
 	// Set headers for SSE (Server-Sent Events)
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
@@ -306,7 +307,7 @@ func (s *Server) handleStreamChat(c *gin.Context, message string) {
 
 		// Use a for loop to continuously process callbacks
 		// until ListenAndWatch completes
-		err := s.agent.ListenAndWatch(c.Request.Context(), message, nil, func(resp string) error {
+		err := s.agent.ListenAndWatch(c.Request.Context(), message, images, func(resp string) error {
 			// Send each chunk to the stream channel
 			select {
 			case streamChan <- resp:

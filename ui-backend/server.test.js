@@ -63,6 +63,7 @@ describe('UI Backend API tests (按测试场景组织)', () => {
       expect(response.body).toEqual({ response: 'hello', timestamp: 12345 });
       expect(axios.post).toHaveBeenCalledWith('http://localhost:8080/chat', {
         message: 'Hello',
+        images: undefined,
         agentConfig: { character: 'tester' },
         stream: false
       });
@@ -90,6 +91,7 @@ describe('UI Backend API tests (按测试场景组织)', () => {
         'http://localhost:8080/chat',
         {
           message: 'streaming',
+          images: undefined,
           agentConfig: undefined,
           stream: true
         },
@@ -110,6 +112,28 @@ describe('UI Backend API tests (按测试场景组织)', () => {
       expect(response.status).toBe(500);
       // 流式接口会先设置 SSE 响应头，失败时只保证 HTTP 状态码为 500
       expect(response.body).toEqual({});
+    });
+
+    test('POST /api/agent/chat 透传 images 字段', async () => {
+      axios.post.mockResolvedValueOnce({
+        data: { response: 'image ok', timestamp: 12345 }
+      });
+
+      const payload = {
+        message: 'describe this image',
+        images: ['aGVsbG8='],
+        stream: false
+      };
+      const response = await request(app).post('/api/agent/chat').send(payload);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ response: 'image ok', timestamp: 12345 });
+      expect(axios.post).toHaveBeenCalledWith('http://localhost:8080/chat', {
+        message: 'describe this image',
+        images: ['aGVsbG8='],
+        agentConfig: undefined,
+        stream: false
+      });
     });
   });
 

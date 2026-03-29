@@ -635,6 +635,22 @@ ipcMain.handle('show-save-dialog', async (event, options) => {
   return result;
 });
 
+// Show open dialog
+ipcMain.handle('show-open-dialog', async (event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, options);
+  return result;
+});
+
+// Read file as base64 (for multimodal image upload)
+ipcMain.handle('read-file-as-base64', async (event, filePath) => {
+  try {
+    const content = fs.readFileSync(filePath);
+    return { success: true, data: content.toString('base64') };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Write file
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {

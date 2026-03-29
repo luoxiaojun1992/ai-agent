@@ -31,6 +31,17 @@ async function run() {
     'chat response should contain mock response'
   );
 
+  const imageChat = await requestWithRetry(() => axios.post(`${BASE_URL}/api/agent/chat`, {
+    message: 'hello with image',
+    images: ['aGVsbG8='],
+    stream: false,
+  }), 'image chat');
+  assert(imageChat.status === 200, 'image chat endpoint should be 200');
+  assert(
+    typeof imageChat.data.response === 'string' && imageChat.data.response.includes('mock response'),
+    'image chat response should contain mock response'
+  );
+
   const skill = await requestWithRetry(() => axios.post(`${BASE_URL}/api/agent/skill`, {
     skillName: 'sleep',
     parameters: { duration: '1s' },
