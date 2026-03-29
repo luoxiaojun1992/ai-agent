@@ -166,11 +166,12 @@ async function sendMessage() {
     
     // Save to history
     messageHistory.push({ role: 'user', content: formatUserMessage(message, selectedImages.length) });
+    const imagePayload = selectedImages.map(item => item.data);
     
     if (mode === 'streaming') {
-        await sendStreamingMessage(message, selectedImages);
+        await sendStreamingMessage(message, imagePayload);
     } else {
-        await sendBlockingMessage(message, selectedImages);
+        await sendBlockingMessage(message, imagePayload);
     }
 
     clearSelectedImages();
@@ -462,6 +463,11 @@ function clearSelectedImages() {
     updateUploadHint();
 }
 
+function extractFileName(filePath) {
+    const parts = String(filePath || '').split(/[\\/]/).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : 'uploaded-image';
+}
+
 async function selectImagesForUpload() {
     if (!window.electronAPI) {
         showNotification('Image upload is only available in desktop app', 'error');
@@ -478,13 +484,22 @@ async function selectImagesForUpload() {
     }
 
     const uploaded = [];
+    const failed = [];
     for (const filePath of result.filePaths) {
         const readResult = await window.electronAPI.readFileAsBase64(filePath);
         if (!readResult || !readResult.success || !readResult.data) {
-            showNotification(`Failed to read image: ${filePath}`, 'error');
-            return;
+            failed.push(extractFileName(filePath));
+            continue;
         }
-        uploaded.push({ name: filePath.split(/[\\/]/).pop() || filePath, data: readResult.data });
+        uploaded.push({ name: extractFileName(filePath), data: readResult.data });
+    }
+
+    if (failed.length > 0) {
+        showNotification(`Failed to read ${failed.length} image(s)`, 'error');
+    }
+
+    if (uploaded.length === 0) {
+        return;
     }
 
     selectedImages = uploaded;

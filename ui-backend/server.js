@@ -46,7 +46,9 @@ app.get('/api/agent/status', async (req, res) => {
 app.post('/api/agent/chat', async (req, res) => {
   try {
     const { message, images, agentConfig, stream } = req.body;
-    const normalizedImages = Array.isArray(images) ? images : undefined;
+    const normalizedImages = Array.isArray(images) && images.every((img) => typeof img === 'string')
+      ? images
+      : undefined;
     
     // Check if streaming is requested
     if (stream) {
