@@ -469,6 +469,17 @@ function extractFileName(filePath) {
 }
 
 async function selectImagesForUpload() {
+    if (window.__AI_AGENT_E2E__ === true && Array.isArray(window.__AI_AGENT_TEST_IMAGES__) && window.__AI_AGENT_TEST_IMAGES__.length > 0) {
+        selectedImages = window.__AI_AGENT_TEST_IMAGES__
+            .filter(item => item && typeof item.data === 'string')
+            .map(item => ({
+                name: typeof item.name === 'string' && item.name ? item.name : 'uploaded-image',
+                data: item.data
+            }));
+        updateUploadHint();
+        return;
+    }
+
     if (!window.electronAPI) {
         showNotification('Image upload is only available in desktop app', 'error');
         return;
@@ -488,14 +499,17 @@ async function selectImagesForUpload() {
     for (const filePath of result.filePaths) {
         const readResult = await window.electronAPI.readFileAsBase64(filePath);
         if (!readResult || !readResult.success || !readResult.data) {
-            failed.push(extractFileName(filePath));
+            failed.push({
+                name: extractFileName(filePath),
+                reason: readResult && readResult.error ? String(readResult.error) : 'unknown error'
+            });
             continue;
         }
         uploaded.push({ name: extractFileName(filePath), data: readResult.data });
     }
 
     if (failed.length > 0) {
-        showNotification(`Failed to read ${failed.length} image(s)`, 'error');
+        showNotification(`Failed to read ${failed.length} image(s): ${failed[0].reason}`, 'error');
     }
 
     if (uploaded.length === 0) {

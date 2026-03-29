@@ -91,7 +91,6 @@ test('desktop client supports scheduled task CRUD and enable toggle', async ({},
 
 test('desktop client supports image upload with text message', async ({}, testInfo) => {
   const app = await launchDesktopApp(testInfo);
-  let patchedElectronApi = false;
   try {
     const page = await app.firstWindow();
 
@@ -101,14 +100,9 @@ test('desktop client supports image upload with text message', async ({}, testIn
       }
       const tinyPngBase64 =
         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5nY6UAAAAASUVORK5CYII=';
-      const originalShowOpenDialog = window.electronAPI.showOpenDialog;
-      const originalReadFileAsBase64 = window.electronAPI.readFileAsBase64;
-      window.__originalShowOpenDialog = originalShowOpenDialog;
-      window.__originalReadFileAsBase64 = originalReadFileAsBase64;
-      window.electronAPI.showOpenDialog = async () => ({ canceled: false, filePaths: ['/tmp/tiny.png'] });
-      window.electronAPI.readFileAsBase64 = async () => ({ success: true, data: tinyPngBase64 });
+      window.__AI_AGENT_E2E__ = true;
+      window.__AI_AGENT_TEST_IMAGES__ = [{ name: 'tiny.png', data: tinyPngBase64 }];
     });
-    patchedElectronApi = true;
 
     await page.locator('#uploadImageBtn').click();
     await expect(page.locator('#uploadHint')).toContainText('tiny.png');
@@ -121,19 +115,6 @@ test('desktop client supports image upload with text message', async ({}, testIn
     await expect(page.locator('.message.agent .message-content').last()).toContainText(`mock response: ${message}`);
 
   } finally {
-    if (patchedElectronApi) {
-      const windows = app.windows();
-      if (windows.length > 0) {
-        await windows[0].evaluate(() => {
-          if (window.__originalShowOpenDialog) {
-            window.electronAPI.showOpenDialog = window.__originalShowOpenDialog;
-          }
-          if (window.__originalReadFileAsBase64) {
-            window.electronAPI.readFileAsBase64 = window.__originalReadFileAsBase64;
-          }
-        });
-      }
-    }
     await app.close();
   }
 });
