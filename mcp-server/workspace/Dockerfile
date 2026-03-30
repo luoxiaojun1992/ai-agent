@@ -8,7 +8,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o /out/mcp-workspace-server ./cmd/mcp-workspace-server
+RUN go build -o /out/mcp-workspace-server ./mcp-server/workspace
 
 FROM alpine:3.21
 
@@ -17,7 +17,7 @@ RUN apk add --no-cache ca-certificates su-exec
 WORKDIR /app
 
 COPY --from=builder /out/mcp-workspace-server /usr/local/bin/mcp-workspace-server
-COPY mcp-workspace-server/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY mcp-server/workspace/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/mcp-workspace-server \
 	&& addgroup -S workspace -g 1001 \

@@ -146,7 +146,7 @@ services:
   mcp-workspace-server:
     build:
       context: .
-      dockerfile: mcp-workspace-server/Dockerfile
+      dockerfile: mcp-server/workspace/Dockerfile
     container_name: mcp-workspace-server
     ports:
       - "4003:8080"
