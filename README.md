@@ -126,6 +126,7 @@ Base URL: `http://localhost:8080`
 7. `mcp_web_search`
 8. `mcp_code_repo_search`
 9. `sleep`
+10. `mcp_workspace` (enabled when `MCP_WORKSPACE_HOST` is configured)
 
 > Note: other skill implementations exist under `skill/impl/`, but the list above is the runtime-registered set by default.
 
@@ -155,6 +156,7 @@ MILVUS_HOST=milvus:19530
 MILVUS_COLLECTION=ai_agent_memory
 MCP_WEB_SEARCH_HOST=http://mcp-web-search:3000
 MCP_CONTEXT_7_CLIENT_HOST=http://mcp-context7:8080
+MCP_WORKSPACE_HOST=http://mcp-workspace-server:8080
 AGENT_MODE=loop
 ```
 

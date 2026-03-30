@@ -32,6 +32,7 @@ type Server struct {
 	cancel             context.CancelFunc
 	mcpWebSearchClient *mcpClient.Client
 	mcpContext7Client  *mcpClient.Client
+	mcpWorkspaceClient *mcpClient.Client
 }
 
 type Config struct {
@@ -124,6 +125,23 @@ func NewServer() (*Server, error) {
 		return nil, err
 	}
 
+	var mcpWorkspaceClient *mcpClient.Client
+	mcpWorkspaceHost := strings.TrimSpace(getEnv("MCP_WORKSPACE_HOST", ""))
+	if mcpWorkspaceHost != "" {
+		mcpWorkspaceClient, err = mcpClient.NewClient(&mcpClient.Config{
+			Host:       mcpWorkspaceHost,
+			ClientType: mcpClient.ClientTypeStream,
+		})
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		if err := mcpWorkspaceClient.Initialize(ctx); err != nil {
+			cancel()
+			return nil, err
+		}
+	}
+
 	// Create agent with skills
 	agent, err := ai_agent.NewAgentDouble(ctx,
 		func(option *ai_agent.AgentDoubleOption) {
@@ -142,6 +160,9 @@ func NewServer() (*Server, error) {
 			// Add MCP skills
 			option.AddSkill("mcp_web_search", &skillSet.MCP{MCPClient: mcpWebSearchClient})
 			option.AddSkill("mcp_code_repo_search", &skillSet.MCP{MCPClient: mcpContext7Client})
+			if mcpWorkspaceClient != nil {
+				option.AddSkill("mcp_workspace", &skillSet.MCP{MCPClient: mcpWorkspaceClient})
+			}
 
 			// Add time skills
 			option.AddSkill("sleep", &time_skill.Sleep{})
@@ -178,6 +199,7 @@ func NewServer() (*Server, error) {
 		cancel:             cancel,
 		mcpWebSearchClient: mcpWebSearchClient,
 		mcpContext7Client:  mcpContext7Client,
+		mcpWorkspaceClient: mcpWorkspaceClient,
 	}, nil
 }
 
@@ -518,6 +540,9 @@ func (s *Server) Start() error {
 	s.agent.Agent.Close()
 	s.mcpWebSearchClient.Close()
 	s.mcpContext7Client.Close()
+	if s.mcpWorkspaceClient != nil {
+		s.mcpWorkspaceClient.Close()
+	}
 	s.cancel()
 
 	return nil

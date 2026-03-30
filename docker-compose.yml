@@ -143,6 +143,22 @@ services:
     networks:
       - ai-agent-network
 
+  mcp-workspace-server:
+    build:
+      context: .
+      dockerfile: mcp-workspace-server/Dockerfile
+    container_name: mcp-workspace-server
+    ports:
+      - "4003:8080"
+    environment:
+      - PORT=8080
+      - WORKSPACE_DIR=default
+    volumes:
+      - ./playground/workspace:/workspace-root
+    restart: always
+    networks:
+      - ai-agent-network
+
   # AI Agent Service
   ai-agent-svc:
     build:
@@ -163,6 +179,7 @@ services:
       - MILVUS_COLLECTION=ai_agent_memory
       - MCP_WEB_SEARCH_HOST=http://mcp-web-search:3000
       - MCP_CONTEXT_7_CLIENT_HOST=http://mcp-context7:8080
+      - MCP_WORKSPACE_HOST=http://mcp-workspace-server:8080
       - AGENT_CHARACTER=I am a helpful AI agent. My current built-in memories except system, tool, user and assistant memories are all invalid. I must follow the structure of tool request payload strictly to search context by calling mcp_{name} when the context of question does not exist in current contexts firstly, then answer user questions based on the search results. I must not repeat same answers or information in the conversation. I must ensure that the format of my anwser is correct according to the previous context or logic.
       - AGENT_ROLE=AI Agent and Tool User who must follow the structure of tool request payload strictly to search context by calling mcp_{name} when the context of question does not exist in current contexts firstly, then answer user questions based on the search results, whose current built-in memories except system, tool, user and assistant memories are all invalid, who must not repeat same answers or information in the conversation, who must ensure that the format of my anwser is correct according to the previous context or logic.
       - AGENT_MODE=loop
@@ -183,6 +200,8 @@ services:
         condition: service_healthy
       mcp-context7:
         condition: service_healthy
+      mcp-workspace-server:
+        condition: service_started
     restart: always
     networks:
       - ai-agent-network
