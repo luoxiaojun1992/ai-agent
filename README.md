@@ -236,7 +236,7 @@ Pipeline includes:
 - CORS is configured via environment variables
 - Treat all external API payloads as untrusted input
 
-## 📉 对比 OpenClaw 与 Claude Code：当前项目劣势
+## 📉 对比 OpenClaw（开源 Agent 工程范式）与 Claude Code：当前项目劣势
 
 基于当前仓库的实际实现（`frontend/desktop -> ui-backend -> ai-agent-svc` 多服务分层），目前短板主要集中在以下方面：
 
@@ -262,11 +262,11 @@ Pipeline includes:
 
 ## 🗺️ 面向当前架构的研发迭代 Roadmap
 
-目标：不推翻现有分层架构，在保持 API 兼容（`/api/agent/*` 与 `/chat` `/skill` 等）前提下，分阶段补齐能力。
+目标：不推翻现有分层架构，在保持 API 兼容（`ui-backend` 的 `/api/agent/*` 与 `ai-agent-svc` 的 `/chat`、`/skill` 等）前提下，分阶段补齐能力。
 
 ### Phase 0（0-1 个月）：稳定性与可观测性补强
 - `ai-agent-svc`
-  - 增加请求级 trace id、工具调用日志结构化、关键链路延迟指标。
+  - 增加请求级 trace ID、工具调用日志结构化、关键链路延迟指标。
   - 为 `/chat`（流式/非流式）建立统一错误码与可诊断字段。
 - `ui-backend`
   - 补充 SSE 代理链路指标（连接数、断开原因、超时分布）。
