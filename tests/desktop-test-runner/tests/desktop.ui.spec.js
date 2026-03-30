@@ -88,3 +88,33 @@ test('desktop client supports scheduled task CRUD and enable toggle', async ({},
     await app.close();
   }
 });
+
+test('desktop client supports image upload with text message', async ({}, testInfo) => {
+  const app = await launchDesktopApp(testInfo);
+  try {
+    const page = await app.firstWindow();
+
+    await page.evaluate(() => {
+      if (!window.marked) {
+        window.marked = { parse: (value) => value };
+      }
+      const tinyPngBase64 =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5nY6UAAAAASUVORK5CYII=';
+      window.__AI_AGENT_E2E__ = true;
+      window.__AI_AGENT_TEST_IMAGES__ = [{ name: 'tiny.png', data: tinyPngBase64 }];
+    });
+
+    await page.locator('#uploadImageBtn').click();
+    await expect(page.locator('#uploadHint')).toContainText('tiny.png');
+
+    const message = 'playwright desktop image test';
+    await page.locator('#messageInput').fill(message);
+    await page.locator('#sendBtn').click();
+
+    await expect(page.locator('.message.user .message-content').last()).toContainText('[1 image(s) uploaded]');
+    await expect(page.locator('.message.agent .message-content').last()).toContainText(`mock response: ${message}`);
+
+  } finally {
+    await app.close();
+  }
+});

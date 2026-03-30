@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File operations
   showSaveDialog: (options) => ipcRenderer.invoke('show-save-dialog', options),
+  showOpenDialog: (options) => ipcRenderer.invoke('show-open-dialog', options),
+  readFileAsBase64: (filePath) => ipcRenderer.invoke('read-file-as-base64', filePath),
   writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
 
   // Scheduled tasks

@@ -12,6 +12,7 @@ import (
 
 type chatRequest struct {
 	Message     string                 `json:"message"`
+	Images      []string               `json:"images,omitempty"`
 	AgentConfig map[string]interface{} `json:"agentConfig,omitempty"`
 	Stream      bool                   `json:"stream,omitempty"`
 }
@@ -84,8 +85,8 @@ func (s *state) chatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Message == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Message is required"})
+	if req.Message == "" && len(req.Images) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Message or images are required"})
 		return
 	}
 

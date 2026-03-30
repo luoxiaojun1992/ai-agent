@@ -91,7 +91,7 @@ Base URL: `http://localhost:3001`
 | --- | --- | --- |
 | GET | `/health` | UI backend health |
 | GET | `/api/agent/status` | Proxy agent status |
-| POST | `/api/agent/chat` | Proxy chat (`stream: true` supports SSE) |
+| POST | `/api/agent/chat` | Proxy chat (`stream: true` supports SSE; optional `images: string[]` for multimodal image input) |
 | POST | `/api/agent/skill` | Proxy skill execution |
 | GET | `/api/agent/config` | Proxy config read |
 | PUT | `/api/agent/config` | Proxy config update |
@@ -106,7 +106,7 @@ Base URL: `http://localhost:8080`
 | --- | --- | --- |
 | GET | `/health` | Service health |
 | GET | `/status` | Runtime status and persona |
-| POST | `/chat` | Chat (`stream: true` for SSE) |
+| POST | `/chat` | Chat (`stream: true` for SSE; optional `images: string[]` for multimodal image input) |
 | POST | `/skill` | Execute one skill |
 | GET | `/config` | Read agent config |
 | PUT | `/config` | Update runtime config |

@@ -189,6 +189,16 @@
             font-style: italic;
             color: #6c757d;
         }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 6px;
+        }
+
+        .upload-input {
+            max-width: 220px;
+        }
         
         .message-content {
             white-space: pre-wrap;
@@ -233,9 +243,11 @@
             
             <div class="input-group">
                 <input type="text" id="messageInput" placeholder="Type your message here..." maxlength="1000">
+                <input type="file" id="imageInput" class="upload-input" accept="image/*" multiple>
                 <button id="sendButton" onclick="sendMessage()">Send</button>
                 <button onclick="clearChat()">Clear</button>
             </div>
+            <div id="uploadHint" class="upload-hint"></div>
         </div>
         
         <div class="config-section">
@@ -274,6 +286,7 @@
                     sendMessage();
                 }
             });
+            document.getElementById('imageInput').addEventListener('change', updateUploadHint);
             
             // Handle mode change
             document.querySelectorAll('input[name="chatMode"]').forEach(radio => {
@@ -319,29 +332,33 @@
         
         async function sendMessage() {
             const input = document.getElementById('messageInput');
+            const imageInput = document.getElementById('imageInput');
             const message = input.value.trim();
+            const images = await getSelectedImages(imageInput.files);
             const mode = document.querySelector('input[name="chatMode"]:checked').value;
             
-            if (!message || isLoading) return;
+            if ((!message && images.length === 0) || isLoading) return;
             
             isLoading = true;
             updateSendButton();
             
             // Add user message to chat
-            addChatMessage(message, 'user');
+            addChatMessage(formatUserMessage(message, images.length), 'user');
             input.value = '';
+            imageInput.value = '';
+            updateUploadHint();
             
             if (mode === 'streaming') {
-                await sendStreamingMessage(message);
+                await sendStreamingMessage(message, images);
             } else {
-                await sendBlockingMessage(message);
+                await sendBlockingMessage(message, images);
             }
             
             isLoading = false;
             updateSendButton();
         }
         
-        async function sendBlockingMessage(message) {
+        async function sendBlockingMessage(message, images = []) {
             try {
                 const response = await fetch(`${API_BASE}/agent/chat`, {
                     method: 'POST',
@@ -350,6 +367,7 @@
                     },
                     body: JSON.stringify({
                         message: message,
+                        images: images,
                         stream: false
                     })
                 });
@@ -365,7 +383,7 @@
             }
         }
         
-        async function sendStreamingMessage(message) {
+        async function sendStreamingMessage(message, images = []) {
             try {
                 const response = await fetch(`${API_BASE}/agent/chat`, {
                     method: 'POST',
@@ -374,6 +392,7 @@
                     },
                     body: JSON.stringify({
                         message: message,
+                        images: images,
                         stream: true
                     })
                 });
@@ -519,6 +538,7 @@
             const sendButton = document.getElementById('sendButton');
             const plannerButton = document.getElementById('plannerButton');
             const input = document.getElementById('messageInput');
+            const imageInput = document.getElementById('imageInput');
             
             if (isLoading) {
                 sendButton.disabled = true;
@@ -526,13 +546,57 @@
                 plannerButton.disabled = true;
                 plannerButton.textContent = 'Planning...';
                 input.disabled = true;
+                imageInput.disabled = true;
             } else {
                 sendButton.disabled = false;
                 sendButton.textContent = 'Send';
                 plannerButton.disabled = false;
                 plannerButton.textContent = 'Agent Planner';
                 input.disabled = false;
+                imageInput.disabled = false;
             }
+        }
+
+        function formatUserMessage(message, imageCount) {
+            if (message && imageCount > 0) {
+                return `${message}\n[${imageCount} image(s) uploaded]`;
+            }
+            if (message) {
+                return message;
+            }
+            return `[${imageCount} image(s) uploaded]`;
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = String(reader.result || '');
+                    const base64 = result.includes(',') ? result.split(',')[1] : result;
+                    resolve(base64);
+                };
+                reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function getSelectedImages(fileList) {
+            const files = Array.from(fileList || []).filter(file => file.type && file.type.startsWith('image/'));
+            if (files.length === 0) {
+                return [];
+            }
+            return Promise.all(files.map(fileToBase64));
+        }
+
+        function updateUploadHint() {
+            const imageInput = document.getElementById('imageInput');
+            const uploadHint = document.getElementById('uploadHint');
+            const files = Array.from(imageInput.files || []);
+            if (files.length === 0) {
+                uploadHint.textContent = '';
+                return;
+            }
+            uploadHint.textContent = `Selected image(s): ${files.map(file => file.name).join(', ')}`;
         }
         
         async function refreshConfig() {

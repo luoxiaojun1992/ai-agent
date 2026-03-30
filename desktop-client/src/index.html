@@ -378,6 +378,12 @@
             cursor: not-allowed;
         }
 
+        .upload-hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+
         .input-group {
             display: flex;
             gap: 10px;
@@ -840,6 +846,9 @@
                         <button class="toolbar-btn primary" id="plannerBtn" onclick="runPlanner()">
                             📋 Agent Planner
                         </button>
+                        <button class="toolbar-btn" id="uploadImageBtn" onclick="selectImagesForUpload()">
+                            🖼️ Upload Images
+                        </button>
                         <button class="toolbar-btn" onclick="exportChat()">
                             💾 Export Chat
                         </button>
@@ -851,6 +860,7 @@
                             Send
                         </button>
                     </div>
+                    <div id="uploadHint" class="upload-hint"></div>
                 </div>
             </div>
         </main>

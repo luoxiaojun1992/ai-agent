@@ -22,3 +22,31 @@ test('frontend can send blocking chat message', async ({ page }) => {
 
   await page.screenshot({ path: 'artifacts/frontend-ui.png', fullPage: true });
 });
+
+test('frontend supports image upload with text message', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!window.marked) {
+      window.marked = { parse: (value) => value };
+    }
+  });
+
+  await page.goto('/');
+
+  await expect(page.locator('#imageInput')).toBeVisible();
+
+  const pngBase64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5nY6UAAAAASUVORK5CYII=';
+  const imageBuffer = Buffer.from(pngBase64, 'base64');
+  await page.locator('#imageInput').setInputFiles({
+    name: 'tiny.png',
+    mimeType: 'image/png',
+    buffer: imageBuffer,
+  });
+
+  const message = 'playwright ui image test';
+  await page.locator('#messageInput').fill(message);
+  await page.locator('#sendButton').click();
+
+  await expect(page.locator('.message.user .message-content').last()).toContainText('[1 image(s) uploaded]');
+  await expect(page.locator('.message.agent .message-content').last()).toContainText(`mock response: ${message}`);
+});
