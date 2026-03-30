@@ -213,7 +213,7 @@ func registerWorkspaceTools(mcpServer *server.MCPServer, workspaceRoot string) {
 		return mcp.NewToolResultJSON(map[string]any{
 			"path":    rel,
 			"content": string(content),
-		}), nil
+		})
 	})
 
 	mcpServer.AddTool(mcp.NewTool(
@@ -260,7 +260,7 @@ func registerWorkspaceTools(mcpServer *server.MCPServer, workspaceRoot string) {
 		return mcp.NewToolResultJSON(map[string]any{
 			"status": "ok",
 			"path":   rel,
-		}), nil
+		})
 	})
 
 	mcpServer.AddTool(mcp.NewTool(
@@ -282,7 +282,7 @@ func registerWorkspaceTools(mcpServer *server.MCPServer, workspaceRoot string) {
 		return mcp.NewToolResultJSON(map[string]any{
 			"status": "ok",
 			"path":   rel,
-		}), nil
+		})
 	})
 
 	mcpServer.AddTool(mcp.NewTool(
@@ -324,7 +324,7 @@ func registerWorkspaceTools(mcpServer *server.MCPServer, workspaceRoot string) {
 		return mcp.NewToolResultJSON(map[string]any{
 			"status": "ok",
 			"path":   rel,
-		}), nil
+		})
 	})
 }
 
