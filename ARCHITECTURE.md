@@ -20,6 +20,7 @@ graph TB
 
     MCPWeb[MCP Web Search\n:4001 -> 3000]
     MCPCtx[MCP Context7\n:4002 -> 8080]
+    MCPWorkspace[MCP Workspace\n:4003 -> 8080]
 
     Web --> Frontend
     Frontend --> UI
@@ -34,6 +35,7 @@ graph TB
 
     SVC -->|mcp_web_search| MCPWeb
     SVC -->|mcp_code_repo_search| MCPCtx
+    SVC -->|mcp_workspace| MCPWorkspace
 ```
 
 ## 2. Service Responsibilities
@@ -61,6 +63,7 @@ graph TB
 ### MCP services
 - **mcp-web-search**: external web search tool endpoint.
 - **mcp-context7**: code/documentation retrieval tool endpoint.
+- **mcp-workspace-server**: workspace file operation endpoint for agent code output.
 
 ## 3. Request Flow
 
@@ -91,6 +94,7 @@ graph TB
 - `directory_remover`
 - `mcp_web_search`
 - `mcp_code_repo_search`
+- `mcp_workspace` (enabled when `MCP_WORKSPACE_HOST` is configured)
 - `sleep`
 
 ## 5. Deployment Modes
