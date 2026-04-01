@@ -7,16 +7,19 @@ graph TB
     subgraph Clients
         Web[Web Browser]
         Desktop[Electron Desktop]
+        IDE[VSCode in Browser]
     end
 
     Frontend[Frontend\nNginx static site\n:3000]
     UI[UI Backend\nNode.js Express\n:3001]
     SVC[AI Agent Service\nGo + Gin\n:8080]
+    Migration[Migration\nmodel + collection init]
 
     Ollama[Ollama\nLLM + Embedding\n:11434]
     Milvus[Milvus\nVector DB\n:19530]
     Etcd[etcd\nmetadata]
     Minio[MinIO\nobject storage]
+    CodeServer[code-server\nWeb IDE\n:8443]
 
     MCPWeb[MCP Web Search\n:4001 -> 3000]
     MCPCtx[MCP Context7\n:4002 -> 8080]
@@ -27,15 +30,19 @@ graph TB
     Desktop --> UI
 
     UI -->|HTTP proxy /api/agent/*| SVC
+    IDE --> CodeServer
 
     SVC -->|chat/embedding| Ollama
     SVC -->|vector memory| Milvus
+    Migration --> Ollama
+    Migration --> Milvus
     Milvus --> Etcd
     Milvus --> Minio
 
     SVC -->|mcp_web_search| MCPWeb
     SVC -->|mcp_code_repo_search| MCPCtx
     SVC -->|mcp_workspace| MCPWorkspace
+    CodeServer -. shared workspace .- MCPWorkspace
 ```
 
 ## 2. Service Responsibilities
@@ -64,6 +71,10 @@ graph TB
 - **mcp-web-search**: external web search tool endpoint.
 - **mcp-context7**: code/documentation retrieval tool endpoint.
 - **mcp-workspace-server**: workspace file operation endpoint for agent code output.
+
+### development helper services
+- **migration**: initializes model dependencies and vector collection before `ai-agent-svc` starts.
+- **code-server**: browser-accessible VSCode bound to workspace files used by MCP workspace operations.
 
 ## 3. Request Flow
 
