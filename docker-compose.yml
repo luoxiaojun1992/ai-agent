@@ -165,7 +165,7 @@ services:
     ports:
       - "8443:8443"
     environment:
-      - PASSWORD=${VSCODE_PASSWORD:?VSCODE_PASSWORD is required}
+      - PASSWORD=vscode-workspace
     command: --bind-addr 0.0.0.0:8443 /workspace-root/default
     volumes:
       - ./playground/workspace:/workspace-root

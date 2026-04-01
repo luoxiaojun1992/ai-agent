@@ -5,7 +5,6 @@
 ### Manual Deployment Steps
 ```bash
 # 1. Start all services
-export VSCODE_PASSWORD=change-this-password
 docker-compose up --build -d
 
 # 2. Access the system
@@ -187,7 +186,7 @@ docker volume prune -f
 
 ### Access URLs
 - **Frontend**: http://localhost:3000
-- **VSCode IDE (code-server)**: http://localhost:8443/?folder=/workspace-root/default
+- **VSCode IDE (code-server)**: http://localhost:8443/?folder=/workspace-root/default (default password: `vscode-workspace`)
 - **API**: http://localhost:3001
 - **Health**: http://localhost:3001/health
 - **Agent Status**: http://localhost:8080/health

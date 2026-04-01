@@ -70,7 +70,7 @@ docker compose up --build -d
 ### Access
 
 - Web UI: http://localhost:3000
-- VSCode IDE (code-server): http://localhost:8443/?folder=/workspace-root/default (`VSCODE_PASSWORD` required in shell env before `docker compose up`)
+- VSCode IDE (code-server): http://localhost:8443/?folder=/workspace-root/default (default password: `vscode-workspace`)
 - UI backend health: http://localhost:3001/health
 - AI service health: http://localhost:8080/health
 
