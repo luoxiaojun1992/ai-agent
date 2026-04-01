@@ -24,6 +24,7 @@ open http://localhost:3000
 - [ ] Port 3000 (Frontend)
 - [ ] Port 3001 (UI Backend)
 - [ ] Port 8080 (AI Agent Service)
+- [ ] Port 8443 (VSCode IDE / code-server)
 - [ ] Port 19530 (Milvus)
 - [ ] Port 11434 (Ollama)
 
@@ -185,6 +186,7 @@ docker volume prune -f
 
 ### Access URLs
 - **Frontend**: http://localhost:3000
+- **VSCode IDE (code-server)**: http://localhost:8443/?folder=/workspace-root/default (default password: `vscode-workspace`)
 - **API**: http://localhost:3001
 - **Health**: http://localhost:3001/health
 - **Agent Status**: http://localhost:8080/health

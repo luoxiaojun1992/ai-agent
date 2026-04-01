@@ -59,7 +59,7 @@ Desktop app calls `ui-backend` directly (same `/api/agent/*` contract).
 
 - Docker 20+
 - Docker Compose v2+
-- Available ports: `3000`, `3001`, `8080`, `11434`, `19530`, `9091`, `4001`, `4002`, `9000`, `9001`
+- Available ports: `3000`, `3001`, `8080`, `8443`, `11434`, `19530`, `9091`, `4001`, `4002`, `9000`, `9001`
 
 ### Start full stack
 
@@ -70,6 +70,7 @@ docker compose up --build -d
 ### Access
 
 - Web UI: http://localhost:3000
+- VSCode IDE (code-server): http://localhost:8443/?folder=/workspace-root/default (default password: `vscode-workspace`)
 - UI backend health: http://localhost:3001/health
 - AI service health: http://localhost:8080/health
 
