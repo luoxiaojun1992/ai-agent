@@ -5,6 +5,7 @@
 ### Manual Deployment Steps
 ```bash
 # 1. Start all services
+export VSCODE_PASSWORD=change-this-password
 docker-compose up --build -d
 
 # 2. Access the system
