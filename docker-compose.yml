@@ -159,6 +159,20 @@ services:
     networks:
       - ai-agent-network
 
+  code-server:
+    image: codercom/code-server:latest
+    container_name: ai-agent-code-server
+    ports:
+      - "8443:8443"
+    environment:
+      - PASSWORD=vscode-workspace
+    command: --bind-addr 0.0.0.0:8443 /workspace-root/default
+    volumes:
+      - ./playground/workspace:/workspace-root
+    restart: always
+    networks:
+      - ai-agent-network
+
   # AI Agent Service
   ai-agent-svc:
     build:
