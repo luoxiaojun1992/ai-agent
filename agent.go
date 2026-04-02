@@ -33,7 +33,9 @@ type Config struct {
 
 	SupervisorSwitch bool
 
-	OllamaHost string
+	OllamaHost    string
+	OllamaAPIType string
+	OllamaAPIKey  string
 
 	MilvusHost       string
 	MilvusCollection string
@@ -150,7 +152,9 @@ func NewAgent(ctx context.Context, optionFuncs ...func(option *AgentOption)) (*A
 	}
 	if option.ollamaCli == nil {
 		option.SetOllamaCli(ollama.NewClient(&ollama.Config{
-			Host: option.config.OllamaHost,
+			Host:    option.config.OllamaHost,
+			APIType: option.config.OllamaAPIType,
+			APIKey:  option.config.OllamaAPIKey,
 		}))
 	}
 	if option.milvusCli == nil {
