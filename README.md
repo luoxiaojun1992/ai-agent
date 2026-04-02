@@ -153,6 +153,8 @@ CHAT_MODEL=qwen3:4b
 EMBEDDING_MODEL=nomic-embed-text
 SUPERVISOR_MODEL=qwen3:4b
 OLLAMA_HOST=http://ollama:11434
+OLLAMA_API_TYPE=ollama
+OLLAMA_API_KEY=
 MILVUS_HOST=milvus:19530
 MILVUS_COLLECTION=ai_agent_memory
 MCP_WEB_SEARCH_HOST=http://mcp-web-search:3000
@@ -166,6 +168,11 @@ Key model variables:
 - `CHAT_MODEL`: primary model for normal chat generation
 - `SUPERVISOR_MODEL`: model used by supervisor/review logic when enabled
 - `EMBEDDING_MODEL`: model used for embedding generation in memory/vector workflows
+
+Ollama client API variables:
+
+- `OLLAMA_API_TYPE`: `ollama` (default) or `openai` (for OpenAI-compatible endpoints)
+- `OLLAMA_API_KEY`: optional bearer token for OpenAI-compatible endpoints
 
 ## 🛠️ Development
 

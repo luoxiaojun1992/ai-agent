@@ -84,6 +84,8 @@ func NewServer() (*Server, error) {
 			ModelTemperature:       getFloat32Env("MODEL_TEMPERATURE", 0.1),
 			SupervisorSwitch:       getBoolEnv("SUPERVISOR_SWITCH", false),
 			OllamaHost:             getEnv("OLLAMA_HOST", "http://ollama:11434"),
+			OllamaAPIType:          getEnv("OLLAMA_API_TYPE", "ollama"),
+			OllamaAPIKey:           getEnv("OLLAMA_API_KEY", ""),
 			MilvusHost:             getEnv("MILVUS_HOST", "milvus:19530"),
 			MilvusCollection:       getEnv("MILVUS_COLLECTION", "ai_agent_memory"),
 			HttpTimeout:            30 * time.Second,
