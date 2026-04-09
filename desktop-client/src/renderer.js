@@ -2,6 +2,7 @@
 // Reuse existing web UI features and add Electron desktop client capabilities
 
 const API_BASE = 'http://localhost:3001/api';
+const CHAT_MEMORY_LIMIT = 100;
 let isLoading = false;
 let currentStreamController = null;
 let messageHistory = [];
@@ -149,6 +150,29 @@ function parseMarkdown(content) {
     return div.innerHTML.replace(/\n/g, '<br>');
 }
 
+function trimMessageHistory() {
+    if (messageHistory.length > CHAT_MEMORY_LIMIT) {
+        messageHistory = messageHistory.slice(-CHAT_MEMORY_LIMIT);
+    }
+}
+
+function appendMessageHistory(role, content) {
+    messageHistory.push({ role, content });
+    trimMessageHistory();
+}
+
+function trimChatMessages() {
+    const chatMessages = document.getElementById('chatMessages');
+    const messages = chatMessages.querySelectorAll('.message');
+    const overflow = messages.length - CHAT_MEMORY_LIMIT;
+    if (overflow <= 0) {
+        return;
+    }
+    for (let i = 0; i < overflow; i++) {
+        messages[i].remove();
+    }
+}
+
 // Send message
 async function sendMessage() {
     const input = document.getElementById('messageInput');
@@ -165,7 +189,7 @@ async function sendMessage() {
     input.value = '';
     
     // Save to history
-    messageHistory.push({ role: 'user', content: formatUserMessage(message, selectedImages.length) });
+    appendMessageHistory('user', formatUserMessage(message, selectedImages.length));
     const imagePayload = selectedImages.map(item => item.data);
     
     if (mode === 'streaming') {
@@ -198,7 +222,7 @@ async function sendBlockingMessage(message, images = []) {
         if (response.ok) {
             const data = await response.json();
             addMessage(data.response, 'agent');
-            messageHistory.push({ role: 'agent', content: data.response });
+            appendMessageHistory('agent', data.response);
         } else {
             addMessage('Error: Unable to get AI response', 'agent', true);
         }
@@ -264,7 +288,7 @@ async function sendStreamingMessage(message, images = []) {
                                 updateStreamingMessage(messageElement, content);
                             } else if (eventType === 'complete') {
                                 finalizeStreamingMessage(messageElement, content);
-                                messageHistory.push({ role: 'agent', content: content });
+                                appendMessageHistory('agent', content);
                                 currentStreamController = null;
                                 return;
                             } else if (eventType === 'error') {
@@ -327,6 +351,7 @@ function addMessage(content, sender, isError = false) {
     messageDiv.appendChild(headerDiv);
     messageDiv.appendChild(bubbleDiv);
     chatMessages.appendChild(messageDiv);
+    trimChatMessages();
     
     // Scroll to bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -362,6 +387,7 @@ function addStreamingMessage() {
     messageDiv.appendChild(headerDiv);
     messageDiv.appendChild(bubbleDiv);
     chatMessages.appendChild(messageDiv);
+    trimChatMessages();
     
     chatMessages.scrollTop = chatMessages.scrollHeight;
     
@@ -539,7 +565,7 @@ async function runPlanner() {
     
     // Add user message
     addMessage("Execute plan task: " + task, 'user');
-    messageHistory.push({ role: 'user', content: task });
+    appendMessageHistory('user', task);
     
     if (mode === 'streaming') {
         await sendStreamingMessage(plannerMessage);
@@ -621,7 +647,8 @@ function toSender(role) {
 
 function renderChatFromMemory(contexts) {
     const chatMessages = document.getElementById('chatMessages');
-    if (contexts.length === 0) {
+    const latestContexts = contexts.slice(-CHAT_MEMORY_LIMIT);
+    if (latestContexts.length === 0) {
         chatMessages.innerHTML = `
             <div class="welcome-message">
                 <h2>👋 Welcome to AI Agent Desktop</h2>
@@ -633,11 +660,11 @@ function renderChatFromMemory(contexts) {
     }
 
     chatMessages.innerHTML = '';
-    messageHistory = contexts.map(ctx => ({
+    messageHistory = latestContexts.map(ctx => ({
         role: toSender(ctx.role),
         content: ctx.content
     }));
-    contexts.forEach(ctx => {
+    latestContexts.forEach(ctx => {
         const sender = toSender(ctx.role);
         addMessage(ctx.content, sender);
     });
@@ -645,7 +672,7 @@ function renderChatFromMemory(contexts) {
 
 async function refreshMemory(showSuccess = true) {
     try {
-        const response = await fetch(`${API_BASE}/agent/memory`);
+        const response = await fetch(`${API_BASE}/agent/memory?limit=${CHAT_MEMORY_LIMIT}`);
         if (response.ok) {
             const data = await response.json();
             const chatContexts = normalizeChatContexts(data.contexts);

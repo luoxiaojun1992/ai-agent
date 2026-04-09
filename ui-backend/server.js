@@ -158,7 +158,9 @@ app.put('/api/agent/config', async (req, res) => {
 // Memory operations
 app.get('/api/agent/memory', async (req, res) => {
   try {
-    const response = await axios.get(`${AI_AGENT_SVC_URL}/memory`);
+    const limit = typeof req.query.limit === 'string' ? req.query.limit.trim() : '';
+    const memoryUrl = limit ? `${AI_AGENT_SVC_URL}/memory?limit=${encodeURIComponent(limit)}` : `${AI_AGENT_SVC_URL}/memory`;
+    const response = await axios.get(memoryUrl);
     res.json(response.data);
   } catch (error) {
     console.error('Error fetching memory:', error.message);

@@ -270,6 +270,7 @@
 
     <script>
         const API_BASE = 'http://localhost:3001/api';
+        const CHAT_MEMORY_LIMIT = 100;
         let isLoading = false;
         let currentStreamController = null;
         const CHAT_MEMORY_ROLES = new Set(['user', 'assistant']);
@@ -473,6 +474,7 @@
             
             messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
+            trimChatMessages();
             
             // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -491,6 +493,7 @@
             
             messageDiv.appendChild(contentDiv);
             chatMessages.appendChild(messageDiv);
+            trimChatMessages();
             
             // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -531,6 +534,13 @@
             if (currentStreamController) {
                 currentStreamController.cancelled = true;
                 currentStreamController = null;
+            }
+        }
+
+        function trimChatMessages() {
+            const chatMessages = document.getElementById('chatMessages');
+            while (chatMessages.children.length > CHAT_MEMORY_LIMIT) {
+                chatMessages.removeChild(chatMessages.firstElementChild);
             }
         }
         
@@ -630,7 +640,8 @@
 
         function renderChatFromMemory(contexts) {
             const chatMessages = document.getElementById('chatMessages');
-            if (contexts.length === 0) {
+            const latestContexts = contexts.slice(-CHAT_MEMORY_LIMIT);
+            if (latestContexts.length === 0) {
                 chatMessages.innerHTML = `
                     <div class="message agent">
                         <div class="message-content">Hello! I'm your AI Agent. How can I help you today?</div>
@@ -640,7 +651,7 @@
             }
 
             chatMessages.innerHTML = '';
-            contexts.forEach(ctx => {
+            latestContexts.forEach(ctx => {
                 addChatMessage(ctx.content, ctx.role === 'user' ? 'user' : 'agent');
             });
         }
@@ -664,7 +675,7 @@
         
         async function refreshMemory(showSuccess = true) {
             try {
-                const response = await fetch(`${API_BASE}/agent/memory`);
+                const response = await fetch(`${API_BASE}/agent/memory?limit=${CHAT_MEMORY_LIMIT}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch memory');
                 }
