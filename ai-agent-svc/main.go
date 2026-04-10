@@ -485,7 +485,18 @@ func (s *Server) updateConfigHandler(c *gin.Context) {
 }
 
 func (s *Server) getMemoryHandler(c *gin.Context) {
-	memory := s.agent.MemorySnapshot()
+	limit := 0
+	limitParam := strings.TrimSpace(c.Query("limit"))
+	if limitParam != "" {
+		parsedLimit, err := strconv.Atoi(limitParam)
+		if err != nil || parsedLimit < 0 {
+			c.JSON(400, gin.H{"error": "limit must be a non-negative integer"})
+			return
+		}
+		limit = parsedLimit
+	}
+
+	memory := s.agent.MemorySnapshotWithLimit(limit)
 	c.JSON(200, gin.H{
 		"contexts": memory.Contexts,
 		"length":   len(memory.Contexts),

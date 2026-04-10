@@ -222,6 +222,27 @@ func TestAgentDouble_MemorySnapshotLoadAndForget(t *testing.T) {
 	}
 }
 
+func TestAgentDouble_MemorySnapshotWithLimit(t *testing.T) {
+	ad, _, _, _ := newAgentDoubleWithMocks(t)
+	ad.AddUserMemory("u1", nil).
+		AddAssistantMemory("a1", nil).
+		AddToolMemory("t1", nil).
+		AddUserMemory("u2", nil)
+
+	snapshot := ad.MemorySnapshotWithLimit(2)
+	if len(snapshot.Contexts) != 2 {
+		t.Fatalf("expected snapshot len 2, got %d", len(snapshot.Contexts))
+	}
+	if snapshot.Contexts[0].Content != "t1" || snapshot.Contexts[1].Content != "u2" {
+		t.Fatalf("expected latest contexts [t1 u2], got [%s %s]", snapshot.Contexts[0].Content, snapshot.Contexts[1].Content)
+	}
+
+	allSnapshot := ad.MemorySnapshotWithLimit(0)
+	if len(allSnapshot.Contexts) != 4 {
+		t.Fatalf("expected full snapshot len 4, got %d", len(allSnapshot.Contexts))
+	}
+}
+
 func TestAgentDouble_CompressContextByTokenBudget(t *testing.T) {
 	ad, _, _, _ := newAgentDoubleWithMocks(t)
 	ad.config.ChatModelContextLimit = 20

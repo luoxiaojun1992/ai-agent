@@ -33,6 +33,7 @@ let taskSchedulers = new Map();
 let pendingTaskPreparations = new Map();
 const enqueueScheduledTaskExecution = createTaskExecutionQueue(console);
 const TASK_PREPARATION_TIMEOUT_MS = 5000;
+const CHAT_MEMORY_LIMIT = 100;
 
 // Load configuration
 function loadConfig() {
@@ -91,8 +92,11 @@ async function clearAgentMemory(apiBase) {
   }
 }
 
-async function getAgentMemorySnapshot(apiBase) {
-  const response = await fetch(`${apiBase}/agent/memory`);
+async function getAgentMemorySnapshot(apiBase, limit) {
+  const url = typeof limit === 'number' && limit > 0
+    ? `${apiBase}/agent/memory?limit=${limit}`
+    : `${apiBase}/agent/memory`;
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to get memory snapshot: HTTP ${response.status}`);
   }
@@ -263,7 +267,7 @@ async function executeScheduledTask(task, options = {}) {
       isError = true;
     }
 
-    const taskMemoryContexts = await getAgentMemorySnapshot(apiBase);
+    const taskMemoryContexts = await getAgentMemorySnapshot(apiBase, CHAT_MEMORY_LIMIT);
     const saved = saveTaskExecutionHistory(task.id, {
       taskName: task.name,
       result,

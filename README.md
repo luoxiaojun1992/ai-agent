@@ -96,7 +96,7 @@ Base URL: `http://localhost:3001`
 | POST | `/api/agent/skill` | Proxy skill execution |
 | GET | `/api/agent/config` | Proxy config read |
 | PUT | `/api/agent/config` | Proxy config update |
-| GET | `/api/agent/memory` | Proxy memory snapshot |
+| GET | `/api/agent/memory` | Proxy memory snapshot (`?limit=n`: `n>0` returns latest `n`; omit or `0` returns full snapshot) |
 | DELETE | `/api/agent/memory` | Proxy memory clear |
 
 ### AI Agent Service (`ai-agent-svc/main.go`)
@@ -111,7 +111,7 @@ Base URL: `http://localhost:8080`
 | POST | `/skill` | Execute one skill |
 | GET | `/config` | Read agent config |
 | PUT | `/config` | Update runtime config |
-| GET | `/memory` | Read in-memory contexts |
+| GET | `/memory` | Read in-memory contexts (`?limit=n`: `n>0` returns latest `n`; omit or `0` returns full snapshot) |
 | DELETE | `/memory` | Reset memory |
 
 ## 🧩 Registered Skills (Current)

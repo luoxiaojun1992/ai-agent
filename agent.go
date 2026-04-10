@@ -752,11 +752,22 @@ func (ad *AgentDouble) ResetMemory() *AgentDouble {
 }
 
 func (ad *AgentDouble) MemorySnapshot() *Memory {
+	return ad.MemorySnapshotWithLimit(0)
+}
+
+func (ad *AgentDouble) MemorySnapshotWithLimit(limit int) *Memory {
 	ad.memoryMu.RLock()
 	defer ad.memoryMu.RUnlock()
 
-	memorySnapshot := &Memory{}
-	for _, memoryCtx := range ad.memory.Contexts {
+	start := 0
+	if limit > 0 && limit < len(ad.memory.Contexts) {
+		start = len(ad.memory.Contexts) - limit
+	}
+
+	memorySnapshot := &Memory{
+		Contexts: make([]*MemoryCtx, 0, len(ad.memory.Contexts)-start),
+	}
+	for _, memoryCtx := range ad.memory.Contexts[start:] {
 		memorySnapshot.Contexts = append(memorySnapshot.Contexts, &MemoryCtx{
 			Role:    memoryCtx.Role,
 			Content: memoryCtx.Content,

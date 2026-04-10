@@ -197,6 +197,18 @@ describe('UI Backend API tests (按测试场景组织)', () => {
       expect(axios.get).toHaveBeenCalledWith('http://localhost:8080/memory');
     });
 
+    test('GET /api/agent/memory 透传 limit 参数', async () => {
+      axios.get.mockResolvedValueOnce({
+        data: { contexts: ['b'], length: 1 }
+      });
+
+      const response = await request(app).get('/api/agent/memory?limit=1');
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ contexts: ['b'], length: 1 });
+      expect(axios.get).toHaveBeenCalledWith('http://localhost:8080/memory?limit=1');
+    });
+
     test('DELETE /api/agent/memory 清空记忆', async () => {
       axios.delete.mockResolvedValueOnce({
         data: { message: 'Memory cleared successfully' }
