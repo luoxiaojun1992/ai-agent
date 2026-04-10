@@ -504,7 +504,8 @@ func (s *Server) getMemoryHandler(c *gin.Context) {
 }
 
 func (s *Server) clearMemoryHandler(c *gin.Context) {
-	s.agent.Forget(-1)
+	s.agent.ResetMemory()
+	addToolSampleMemories(s.agent)
 	c.JSON(200, gin.H{
 		"message": "Memory cleared successfully",
 	})
